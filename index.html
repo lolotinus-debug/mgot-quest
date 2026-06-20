@@ -266,6 +266,7 @@ level++;
 alert("⭐ LEVEL UP! Level " + level);
 }
 }
+}
 
 for(const e of enemies){
 
@@ -413,6 +414,15 @@ ctx.fill();
 ctx.strokeStyle="#7df9ff";
 ctx.lineWidth=3;
 ctx.stroke();
+
+ctx.fillStyle="white";
+ctx.font="bold 12px Arial";
+
+ctx.fillText(
+"M",
+coin.x-camX-4,
+coin.y+4
+);
 
 ctx.fillStyle="white";
 ctx.font="12px Arial";
