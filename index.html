@@ -3,32 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>MGOT Mobile FIX</title>
+<title>MGOT Mario Mobile</title>
 
 <style>
-body {
+body{
     margin:0;
     overflow:hidden;
-    background:#87CEEB;
+    background:#6ec6ff;
     touch-action:none;
     font-family:Arial;
 }
 
-canvas {
-    display:block;
+canvas{ display:block; }
+
+/* HUD */
+#ui{
+    position:fixed;
+    top:10px;
+    left:10px;
+    color:white;
+    font-size:16px;
+    z-index:10;
 }
 
 /* CONTROLS */
-#controls {
+#controls{
     position:fixed;
     bottom:20px;
     width:100%;
     display:flex;
-    justify-content:space-around;
-    z-index:10;
+    justify-content:space-between;
+    padding:0 30px;
+    z-index:20;
 }
 
-.btn {
+.btn{
     width:85px;
     height:85px;
     border-radius:50%;
@@ -41,7 +50,7 @@ canvas {
 </head>
 <body>
 
-<canvas id="c"></canvas>
+<div id="ui"></div>
 
 <div id="controls">
     <button class="btn" id="left">⬅️</button>
@@ -49,8 +58,10 @@ canvas {
     <button class="btn" id="right">➡️</button>
 </div>
 
+<canvas id="game"></canvas>
+
 <script>
-const c = document.getElementById("c");
+const c = document.getElementById("game");
 const ctx = c.getContext("2d");
 
 function resize(){
@@ -60,48 +71,66 @@ function resize(){
 window.addEventListener("resize", resize);
 resize();
 
+const ui = document.getElementById("ui");
+
 const GRAVITY = 0.8;
+
+// CAMERA
+let camX = 0;
 
 // PLAYER
 const p = {
-    x:100,
-    y:100,
-    w:40,
-    h:50,
-    vx:0,
-    vy:0,
+    x:100,y:200,w:40,h:50,
+    vx:0,vy:0,
     speed:6,
     jump:15,
     grounded:false
 };
 
-// FIX ground (stabilný)
-let groundY = 0;
+// LEVEL (Mario štýl)
+const level = {
+    groundY: 500,
+    platforms:[
+        {x:0,y:500,w:5000,h:200},
+        {x:300,y:380,w:150,h:20},
+        {x:600,y:320,w:150,h:20},
+        {x:900,y:260,w:150,h:20},
+        {x:1200,y:220,w:150,h:20},
+        {x:1600,y:260,w:150,h:20},
+        {x:2000,y:320,w:150,h:20}
+    ],
+    coins:[
+        {x:350,y:340,c:false},
+        {x:650,y:280,c:false},
+        {x:950,y:220,c:false},
+        {x:1250,y:180,c:false},
+        {x:1650,y:220,c:false}
+    ],
+    enemies:[
+        {x:700,y:460,w:40,h:40,vx:2},
+        {x:1400,y:460,w:40,h:40,vx:-2}
+    ],
+    goal:{x:2600,y:420,w:60,h:80}
+};
 
-function updateGround(){
-    groundY = c.height - 120;
-}
+let score = 0;
+let lives = 3;
 
-// INPUT (pointer events = 100% mobile kompatibilita)
-let left = false;
-let right = false;
-let jump = false;
+// INPUT (100% mobile stable)
+let left=false,right=false,jump=false;
 
-function bind(btn, action){
-    const el = document.getElementById(btn);
+function bind(id, type){
+    const el=document.getElementById(id);
 
     el.addEventListener("pointerdown", e=>{
         e.preventDefault();
-        if(action==="left") left=true;
-        if(action==="right") right=true;
-        if(action==="jump") jump=true;
+        if(type==="left") left=true;
+        if(type==="right") right=true;
+        if(type==="jump") jump=true;
     });
 
-    el.addEventListener("pointerup", e=>{
-        e.preventDefault();
-        if(action==="left") left=false;
-        if(action==="right") right=false;
-        if(action==="jump") jump=false;
+    el.addEventListener("pointerup", ()=>{
+        left=false; right=false; jump=false;
     });
 
     el.addEventListener("pointercancel", ()=>{
@@ -113,29 +142,34 @@ bind("left","left");
 bind("right","right");
 bind("jump","jump");
 
-// KEYBOARD fallback
-document.addEventListener("keydown", e=>{
+// keyboard fallback
+document.addEventListener("keydown",e=>{
     if(e.key==="a") left=true;
     if(e.key==="d") right=true;
     if(e.key===" ") jump=true;
 });
-document.addEventListener("keyup", e=>{
+document.addEventListener("keyup",e=>{
     if(e.key==="a") left=false;
     if(e.key==="d") right=false;
     if(e.key===" ") jump=false;
 });
 
-function update(){
+function respawn(){
+    p.x=100;
+    p.y=200;
+    p.vx=0;
+    p.vy=0;
+    lives--;
+}
 
-    updateGround();
+function update(){
 
     // movement
     p.vx = 0;
-
     if(left) p.vx = -p.speed;
     if(right) p.vx = p.speed;
 
-    // jump (len ak stojí)
+    // jump
     if(jump && p.grounded){
         p.vy = -p.jump;
         p.grounded = false;
@@ -147,28 +181,108 @@ function update(){
     p.x += p.vx;
     p.y += p.vy;
 
-    // ground collision (100% stable)
-    if(p.y + p.h >= groundY){
-        p.y = groundY - p.h;
-        p.vy = 0;
-        p.grounded = true;
+    p.grounded = false;
+
+    // collision platforms
+    for(let plat of level.platforms){
+        if(
+            p.x < plat.x+plat.w &&
+            p.x+p.w > plat.x &&
+            p.y+p.h <= plat.y &&
+            p.y+p.h+p.vy >= plat.y
+        ){
+            p.y = plat.y - p.h;
+            p.vy = 0;
+            p.grounded = true;
+        }
     }
+
+    // coins
+    for(let c of level.coins){
+        if(!c.c &&
+            p.x < c.x+20 &&
+            p.x+p.w > c.x &&
+            p.y < c.y+20 &&
+            p.y+p.h > c.y
+        ){
+            c.c = true;
+            score++;
+        }
+    }
+
+    // enemies
+    for(let e of level.enemies){
+        e.x += e.vx;
+        if(e.x < 0 || e.x > 3000) e.vx *= -1;
+
+        if(
+            p.x < e.x+e.w &&
+            p.x+p.w > e.x &&
+            p.y < e.y+e.h &&
+            p.y+p.h > e.y
+        ){
+            respawn();
+        }
+    }
+
+    // goal
+    let g = level.goal;
+    if(
+        p.x < g.x+g.w &&
+        p.x+p.w > g.x &&
+        p.y < g.y+g.h &&
+        p.y+p.h > g.y
+    ){
+        alert("YOU WIN MGOT WORLD!");
+        location.reload();
+    }
+
+    camX = p.x - 200;
+
+    if(p.y > 1000) respawn();
 }
 
 function draw(){
     ctx.clearRect(0,0,c.width,c.height);
 
-    // sky
-    ctx.fillStyle="#87CEEB";
+    // sky gradient
+    let grd = ctx.createLinearGradient(0,0,0,c.height);
+    grd.addColorStop(0,"#6ec6ff");
+    grd.addColorStop(1,"#1e90ff");
+    ctx.fillStyle = grd;
     ctx.fillRect(0,0,c.width,c.height);
 
-    // ground
-    ctx.fillStyle="green";
-    ctx.fillRect(0,groundY,c.width,120);
+    // platforms
+    ctx.fillStyle="#2e8b57";
+    for(let plat of level.platforms){
+        ctx.fillRect(plat.x-camX,plat.y,plat.w,plat.h);
+    }
 
-    // player
+    // coins
+    ctx.fillStyle="gold";
+    for(let c of level.coins){
+        if(!c.c){
+            ctx.beginPath();
+            ctx.arc(c.x-camX,c.y,10,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    // enemies
+    ctx.fillStyle="purple";
+    for(let e of level.enemies){
+        ctx.fillRect(e.x-camX,e.y,e.w,e.h);
+    }
+
+    // goal
+    ctx.fillStyle="lime";
+    ctx.fillRect(level.goal.x-camX,level.goal.y,level.goal.w,level.goal.h);
+
+    // player (Mario style placeholder)
     ctx.fillStyle="red";
-    ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillRect(p.x-camX,p.y,p.w,p.h);
+
+    ui.innerHTML = `MGOT: ${score} | Lives: ${lives}`;
 }
 
 function loop(){
