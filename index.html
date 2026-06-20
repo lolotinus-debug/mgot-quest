@@ -422,8 +422,13 @@ finish.y,
 
 ctx.font="42px Arial";
 
+const skins=["🧙","🏃","🤖"];
+
+let frame =
+Math.floor(Date.now()/150)%skins.length;
+
 ctx.fillText(
-"🧙",
+skins[frame],
 player.x-camX,
 player.y+38
 );
