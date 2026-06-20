@@ -2,190 +2,446 @@
 <html lang="sk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MGOT FINAL FIX</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MGOT Platform Adventure</title>
 
 <style>
-body { margin:0; overflow:hidden; background:#6ec6ff; }
-canvas { display:block; touch-action:none; }
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+overflow:hidden;
+background:#87ceeb;
+font-family:Arial,sans-serif;
+}
+
+canvas{
+display:block;
+}
 
 #ui{
-    position:fixed;
-    top:10px;
-    left:10px;
-    color:white;
-    font-family:Arial;
+position:fixed;
+top:10px;
+left:10px;
+color:white;
+font-size:24px;
+font-weight:bold;
+text-shadow:2px 2px 4px black;
+z-index:100;
+}
+
+.mobile{
+position:fixed;
+bottom:20px;
+width:80px;
+height:80px;
+border:none;
+border-radius:50%;
+font-size:28px;
+background:rgba(255,255,255,0.7);
+z-index:100;
+}
+
+#leftBtn{
+left:20px;
+}
+
+#jumpBtn{
+right:20px;
+}
+
+#rightBtn{
+right:120px;
 }
 </style>
 </head>
 <body>
 
 <div id="ui"></div>
-<canvas id="c"></canvas>
+
+<button id="leftBtn" class="mobile">◀</button>
+<button id="rightBtn" class="mobile">▶</button>
+<button id="jumpBtn" class="mobile">⬆</button>
+
+<canvas id="game"></canvas>
 
 <script>
-const c = document.getElementById("c");
-const ctx = c.getContext("2d");
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
 function resize(){
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
 }
-window.addEventListener("resize", resize);
+window.addEventListener("resize",resize);
 resize();
 
-const ui = document.getElementById("ui");
+const ui=document.getElementById("ui");
 
-const GRAVITY = 0.8;
+const gravity=0.8;
 
-// PLAYER
-const p = {
-    x:100,
-    y:100,
-    w:40,
-    h:50,
-    vx:0,
-    vy:0,
-    speed:6,
-    jump:15,
-    grounded:false
+let score=0;
+let lives=3;
+
+const player={
+x:100,
+y:100,
+w:42,
+h:48,
+vx:0,
+vy:0,
+speed:6,
+jump:16,
+grounded:false
 };
-
-// FIX: jednoduchý svet (žiadne glitch platformy)
-const groundY = () => c.height - 120;
-
-const platforms = [
-    {x:0, y:groundY(), w:5000, h:200},
-    {x:400, y:380, w:150, h:20},
-    {x:700, y:320, w:150, h:20},
-    {x:1000, y:260, w:150, h:20},
-    {x:1300, y:220, w:150, h:20}
-];
-
-// INPUT
-let left=false,right=false,jump=false;
-
-document.addEventListener("keydown",e=>{
-    if(e.key==="a") left=true;
-    if(e.key==="d") right=true;
-    if(e.key===" ") jump=true;
-});
-document.addEventListener("keyup",e=>{
-    if(e.key==="a") left=false;
-    if(e.key==="d") right=false;
-    if(e.key===" ") jump=false;
-});
-
-// MOBILE (pointer FIX)
-function bind(id,type){
-    const el=document.createElement("button");
-    el.innerText=type;
-    el.style.position="fixed";
-    el.style.bottom="20px";
-    el.style.width="80px";
-    el.style.height="80px";
-    el.style.fontSize="20px";
-    document.body.appendChild(el);
-
-    if(type==="L") el.style.left="20px";
-    if(type==="R") el.style.right="20px";
-    if(type==="J") el.style.left="50%";
-
-    el.addEventListener("pointerdown",()=>{
-        if(type==="L") left=true;
-        if(type==="R") right=true;
-        if(type==="J") jump=true;
-    });
-
-    el.addEventListener("pointerup",()=>{
-        left=right=jump=false;
-    });
-}
-
-bind("l","L");
-bind("r","R");
-bind("j","J");
 
 let camX=0;
 
+const platforms=[
+{x:0,y:600,w:5000,h:200},
+
+{x:350,y:500,w:140,h:20},
+{x:600,y:430,w:140,h:20},
+{x:850,y:360,w:140,h:20},
+{x:1100,y:290,w:140,h:20},
+
+{x:1450,y:500,w:150,h:20},
+{x:1750,y:430,w:150,h:20},
+{x:2050,y:350,w:150,h:20},
+
+{x:2500,y:500,w:200,h:20},
+{x:2800,y:420,w:200,h:20},
+{x:3100,y:330,w:200,h:20}
+];
+
+const coins=[
+{x:390,y:450,c:false},
+{x:640,y:380,c:false},
+{x:890,y:310,c:false},
+{x:1140,y:240,c:false},
+
+{x:1490,y:450,c:false},
+{x:1790,y:380,c:false},
+{x:2090,y:300,c:false},
+
+{x:2540,y:450,c:false},
+{x:2840,y:370,c:false},
+{x:3140,y:280,c:false}
+];
+
+const enemies=[
+{x:950,y:320,w:40,h:40,dir:1},
+{x:1900,y:390,w:40,h:40,dir:-1},
+{x:2950,y:290,w:40,h:40,dir:1}
+];
+
+const finish={
+x:3600,
+y:500,
+w:40,
+h:100
+};
+
+let left=false;
+let right=false;
+let jump=false;
+
+document.addEventListener("keydown",e=>{
+if(e.key==="a"||e.key==="ArrowLeft") left=true;
+if(e.key==="d"||e.key==="ArrowRight") right=true;
+if(e.code==="Space") jump=true;
+});
+
+document.addEventListener("keyup",e=>{
+if(e.key==="a"||e.key==="ArrowLeft") left=false;
+if(e.key==="d"||e.key==="ArrowRight") right=false;
+if(e.code==="Space") jump=false;
+});
+
+function hold(btn,action){
+
+btn.addEventListener("pointerdown",()=>{
+action(true);
+});
+
+btn.addEventListener("pointerup",()=>{
+action(false);
+});
+
+btn.addEventListener("pointerleave",()=>{
+action(false);
+});
+}
+
+hold(
+document.getElementById("leftBtn"),
+v=>left=v
+);
+
+hold(
+document.getElementById("rightBtn"),
+v=>right=v
+);
+
+hold(
+document.getElementById("jumpBtn"),
+v=>jump=v
+);
+
+function resetPlayer(){
+player.x=100;
+player.y=100;
+player.vx=0;
+player.vy=0;
+}
+
 function update(){
 
-    // movement
-    p.vx = 0;
-    if(left) p.vx = -p.speed;
-    if(right) p.vx = p.speed;
+player.vx=0;
 
-    if(jump && p.grounded){
-        p.vy = -p.jump;
-        p.grounded = false;
-    }
+if(left) player.vx=-player.speed;
+if(right) player.vx=player.speed;
 
-    // physics
-    p.vy += GRAVITY;
+if(jump && player.grounded){
+player.vy=-player.jump;
+player.grounded=false;
+}
 
-    // X first
-    p.x += p.vx;
+player.vy+=gravity;
 
-    // Y second
-    p.y += p.vy;
+player.x+=player.vx;
+player.y+=player.vy;
 
-    p.grounded = false;
+player.grounded=false;
 
-    // 🟢 FIXED COLLISION (najdôležitejšia časť)
-    for(let plat of platforms){
+for(const p of platforms){
 
-        let overlapX =
-            p.x < plat.x + plat.w &&
-            p.x + p.w > plat.x;
+const overlapX=
+player.x < p.x+p.w &&
+player.x+player.w > p.x;
 
-        let fallingOnto =
-            p.y + p.h <= plat.y &&
-            p.y + p.h + p.vy >= plat.y;
+const landing=
+player.y+player.h <= p.y &&
+player.y+player.h+player.vy >= p.y;
 
-        if(overlapX && fallingOnto && p.vy >= 0){
-            p.y = plat.y - p.h;
-            p.vy = 0;
-            p.grounded = true;
-        }
-    }
+if(overlapX && landing && player.vy>=0){
 
-    camX = p.x - 200;
+player.y=p.y-player.h;
+player.vy=0;
+player.grounded=true;
 
-    // fail safe
-    if(p.y > c.height + 200){
-        p.x = 100;
-        p.y = 100;
-        p.vy = 0;
-    }
+}
+}
+
+for(const coin of coins){
+
+if(coin.c) continue;
+
+if(
+player.x < coin.x+24 &&
+player.x+player.w > coin.x &&
+player.y < coin.y+24 &&
+player.y+player.h > coin.y
+){
+coin.c=true;
+score+=10;
+}
+}
+
+for(const e of enemies){
+
+e.x+=e.dir*2;
+
+if(e.dir===1 && e.x>e.start+80){}
+if(!e.start) e.start=e.x;
+
+if(e.x<e.start-80) e.dir=1;
+if(e.x>e.start+80) e.dir=-1;
+
+if(
+player.x < e.x+e.w &&
+player.x+player.w > e.x &&
+player.y < e.y+e.h &&
+player.y+player.h > e.y
+){
+lives--;
+
+if(lives<=0){
+alert("GAME OVER");
+location.reload();
+}
+
+resetPlayer();
+}
+}
+
+if(
+player.x < finish.x+finish.w &&
+player.x+player.w > finish.x &&
+player.y < finish.y+finish.h &&
+player.y+player.h > finish.y
+){
+alert(
+"🎉 LEVEL COMPLETE!\n\nCoins: "+
+score
+);
+location.reload();
+}
+
+if(player.y>canvas.height+300){
+
+lives--;
+
+if(lives<=0){
+alert("GAME OVER");
+location.reload();
+}
+
+resetPlayer();
+}
+
+camX=player.x-250;
+
+if(camX<0) camX=0;
+
+}
+
+function drawCloud(x,y){
+
+ctx.beginPath();
+ctx.arc(x,y,25,0,Math.PI*2);
+ctx.arc(x+25,y-10,30,0,Math.PI*2);
+ctx.arc(x+55,y,25,0,Math.PI*2);
+ctx.fill();
+
 }
 
 function draw(){
-    ctx.clearRect(0,0,c.width,c.height);
 
-    // sky
-    ctx.fillStyle="#6ec6ff";
-    ctx.fillRect(0,0,c.width,c.height);
+ctx.clearRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
 
-    // platforms
-    ctx.fillStyle="green";
-    for(let plat of platforms){
-        ctx.fillRect(plat.x - camX, plat.y, plat.w, plat.h);
-    }
+ctx.fillStyle="#87CEEB";
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
 
-    // player
-    ctx.fillStyle="red";
-    ctx.fillRect(p.x - camX, p.y, p.w, p.h);
+ctx.fillStyle="white";
 
-    ui.innerHTML = "MGOT STABLE TEST";
+for(let i=0;i<12;i++){
+
+let cx=
+(i*400-camX*0.3)%5000;
+
+drawCloud(
+cx,
+120+(i%3)*40
+);
+
+}
+
+ctx.fillStyle="#2e8b57";
+
+for(const p of platforms){
+
+ctx.fillRect(
+p.x-camX,
+p.y,
+p.w,
+p.h
+);
+
+}
+
+for(const coin of coins){
+
+if(coin.c) continue;
+
+ctx.fillStyle="gold";
+
+ctx.beginPath();
+ctx.arc(
+coin.x-camX,
+coin.y,
+12,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+ctx.strokeStyle="#ffd700";
+ctx.lineWidth=3;
+ctx.stroke();
+}
+
+for(const e of enemies){
+
+ctx.font="34px Arial";
+
+ctx.fillText(
+"👾",
+e.x-camX,
+e.y+32
+);
+
+}
+
+ctx.fillStyle="white";
+
+ctx.fillRect(
+finish.x-camX,
+finish.y,
+5,
+finish.h
+);
+
+ctx.fillStyle="red";
+
+ctx.fillRect(
+finish.x-camX,
+finish.y,
+35,
+20
+);
+
+ctx.font="42px Arial";
+
+ctx.fillText(
+"🧙",
+player.x-camX,
+player.y+38
+);
+
+ui.innerHTML=
+"🪙 Coins: "+score+
+"<br>❤️ Lives: "+lives+
+"<br>🏁 Goal: Reach the flag";
 }
 
 function loop(){
-    update();
-    draw();
-    requestAnimationFrame(loop);
+
+update();
+draw();
+
+requestAnimationFrame(
+loop
+);
+
 }
 
 loop();
+
 </script>
 
 </body>
