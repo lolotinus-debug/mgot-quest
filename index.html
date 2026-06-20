@@ -103,6 +103,8 @@ grounded:false
 };
 
 let camX=0;
+  
+let gameLevel = 1;
 
 const platforms=[
 {x:0,y:600,w:5000,h:200},
@@ -148,7 +150,40 @@ y:500,
 w:40,
 h:100
 };
+function loadLevel(level){
 
+if(level===1){
+
+platforms.length=0;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:350,y:500,w:140,h:20},
+{x:600,y:430,w:140,h:20},
+{x:850,y:360,w:140,h:20},
+{x:1100,y:290,w:140,h:20}
+);
+
+}
+
+if(level===2){
+
+platforms.length=0;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:500,y:500,w:120,h:20},
+{x:800,y:420,w:120,h:20},
+{x:1100,y:340,w:120,h:20},
+{x:1400,y:260,w:120,h:20},
+{x:1700,y:180,w:120,h:20}
+);
+
+}
+
+resetPlayer();
+
+}
 let left=false;
 let right=false;
 let jump=false;
@@ -316,11 +351,24 @@ player.x+player.w > finish.x &&
 player.y < finish.y+finish.h &&
 player.y+player.h > finish.y
 ){
+if(gameLevel===1){
+
+alert("🎉 LEVEL 1 COMPLETE!");
+
+gameLevel=2;
+
+loadLevel(2);
+
+finish.x=2200;
+
+}else{
+
 alert(
-"🎉 LEVEL COMPLETE!\n\nCoins: "+
-score
+"🏆 YOU FINISHED THE GAME!\n\nScore: "+score
 );
+
 location.reload();
+
 }
 
 if(player.y>canvas.height+300){
@@ -480,6 +528,7 @@ ui.innerHTML=
 "🪙 Coins: "+score+
 "<br>⭐ XP: "+xp+
 "<br>🏆 Level: "+level+
+"<br>🌍 Stage: "+gameLevel+  
 "<br>❤️ Lives: "+lives+
 "<br>🏁 Goal: Reach the flag";
 }
