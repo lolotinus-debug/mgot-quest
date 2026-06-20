@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MGOT PRO</title>
+
+<style>
+body { margin:0; background:#111; overflow:hidden; font-family:Arial; }
+canvas { display:block; margin:auto; background:#87CEEB; }
+
+#ui {
+    position:fixed;
+    top:10px;
+    left:10px;
+    color:white;
+    font-size:18px;
+    z-index:10;
+}
+
+#menu {
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.8);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    font-size:30px;
+}
+button{
+    font-size:20px;
+    padding:10px 20px;
+    margin-top:10px;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="ui"></div>
+
+<div id="menu">
+    <h1>MGOT PLATFORMER</h1>
+    <button onclick="startGame()">START</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 1000;
+canvas.height = 500;
+
+const ui = document.getElementById("ui");
+const menu = document.getElementById("menu");
+
+const gravity = 0.75;
+
+let gameRunning = false;
+
+// AUDIO (beep system)
+function beep(freq=200,dur=0.1){
+    const ctxA = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctxA.createOscillator();
+    const g = ctxA.createGain();
+    o.connect(g); g.connect(ctxA.destination);
+    o.frequency.value = freq;
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctxA.currentTime + dur);
+    o.stop(ctxA.currentTime + dur);
+}
+
+// CAMERA
+const camera = {x:0};
+
+// PLAYER
+const player = {
+    x:100,y:300,w:40,h:50,
+    vx:0,vy:0,
+    speed:5,jump:15,
+    grounded:false,
+    lives:3,
+    checkpointX:100,
+    checkpointY:300
+};
+
+const keys = {};
+
+// LEVEL
+const level = {
+    platforms:[
+        {x:0,y:450,w:3000,h:50},
+        {x:300,y:360,w:150,h:20},
+        {x:600,y:300,w:150,h:20},
+        {x:900,y:240,w:150,h:20},
+        {x:1200,y:200,w:150,h:20},
+        {x:1600,y:260,w:150,h:20},
+        {x:2000,y:320,w:150,h:20}
+    ],
+    coins:[
+        {x:350,y:320,c:false},
+        {x:650,y:260,c:false},
+        {x:950,y:200,c:false},
+        {x:1250,y:160,c:false},
+        {x:1650,y:220,c:false}
+    ],
+    enemies:[
+        {x:700,y:420,w:40,h:30,vx:2},
+        {x:1400,y:420,w:40,h:30,vx:-2},
+        {x:2100,y:420,w:40,h:30,vx:3}
+    ],
+    goal:{x:2800,y:400,w:50,h:50}
+};
+
+let score = 0;
+
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+// START GAME
+function startGame(){
+    menu.style.display="none";
+    gameRunning = true;
+}
+
+function respawn(){
+    player.x = player.checkpointX;
+    player.y = player.checkpointY;
+    player.vx = 0;
+    player.vy = 0;
+    player.lives--;
+
+    beep(120,0.2);
+
+    if(player.lives <= 0){
+        gameOver();
+    }
+}
+
+function gameOver(){
+    gameRunning = false;
+    menu.style.display="flex";
+    menu.innerHTML = "<h1>GAME OVER</h1><button onclick='location.reload()'>RESTART</button>";
+}
+
+function win(){
+    gameRunning = false;
+    menu.style.display="flex";
+    menu.innerHTML = "<h1>YOU WIN!</h1><button onclick='location.reload()'>PLAY AGAIN</button>";
+}
+
+function update(){
+    if(!gameRunning) return;
+
+    player.vx = 0;
+
+    if(keys["a"]||keys["ArrowLeft"]) player.vx=-player.speed;
+    if(keys["d"]||keys["ArrowRight"]) player.vx=player.speed;
+
+    if((keys[" "]||keys["w"]||keys["ArrowUp"]) && player.grounded){
+        player.vy = -player.jump;
+        player.grounded=false;
+        beep(300,0.05);
+    }
+
+    player.vy += gravity;
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+    player.grounded = false;
+
+    // platforms
+    level.platforms.forEach(p=>{
+        if(
+            player.x < p.x+p.w &&
+            player.x+player.w > p.x &&
+            player.y+player.h <= p.y &&
+            player.y+player.h+player.vy >= p.y
+        ){
+            player.y = p.y-player.h;
+            player.vy = 0;
+            player.grounded = true;
+        }
+    });
+
+    // coins
+    level.coins.forEach(c=>{
+        if(!c.c &&
+            player.x < c.x+20 &&
+            player.x+player.w > c.x &&
+            player.y < c.y+20 &&
+            player.y+player.h > c.y
+        ){
+            c.c = true;
+            score++;
+            beep(600,0.05);
+        }
+    });
+
+    // enemies
+    level.enemies.forEach(e=>{
+        e.x += e.vx;
+        if(e.x<0 || e.x>3000) e.vx*=-1;
+
+        if(
+            player.x < e.x+e.w &&
+            player.x+player.w > e.x &&
+            player.y < e.y+e.h &&
+            player.y+player.h > e.y
+        ){
+            respawn();
+        }
+    });
+
+    // checkpoint
+    if(player.x > 1000){
+        player.checkpointX = player.x;
+        player.checkpointY = player.y;
+    }
+
+    // goal
+    let g = level.goal;
+    if(
+        player.x < g.x+g.w &&
+        player.x+player.w > g.x &&
+        player.y < g.y+g.h &&
+        player.y+player.h > g.y
+    ){
+        win();
+    }
+
+    camera.x = player.x - 300;
+
+    if(player.y > 700) respawn();
+}
+
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // sky gradient
+    let grd = ctx.createLinearGradient(0,0,0,500);
+    grd.addColorStop(0,"#87CEEB");
+    grd.addColorStop(1,"#1e90ff");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // platforms
+    ctx.fillStyle="#2e8b57";
+    level.platforms.forEach(p=>{
+        ctx.fillRect(p.x-camera.x,p.y,p.w,p.h);
+    });
+
+    // coins
+    level.coins.forEach(c=>{
+        if(!c.c){
+            ctx.fillStyle="gold";
+            ctx.beginPath();
+            ctx.arc(c.x-camera.x,c.y,10,0,Math.PI*2);
+            ctx.fill();
+        }
+    });
+
+    // enemies
+    ctx.fillStyle="purple";
+    level.enemies.forEach(e=>{
+        ctx.fillRect(e.x-camera.x,e.y,e.w,e.h);
+    });
+
+    // goal
+    ctx.fillStyle="lime";
+    ctx.fillRect(level.goal.x-camera.x,level.goal.y,level.goal.w,level.goal.h);
+
+    // player
+    ctx.fillStyle="red";
+    ctx.fillRect(player.x-camera.x,player.y,player.w,player.h);
+
+    // UI
+    ui.innerHTML =
+        "MGOT: " + score +
+        " | Lives: " + player.lives;
+}
+
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
