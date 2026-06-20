@@ -87,6 +87,9 @@ const gravity=0.8;
 let score=0;
 let lives=3;
 
+let xp=0;
+let level=1;
+
 const player={
 x:100,
 y:300,
@@ -194,7 +197,7 @@ v=>jump=v
 
 function resetPlayer(){
 player.x=100;
-player.y=100;
+player.y=300;
 player.vx=0;
 player.vy=0;
 }
@@ -254,7 +257,13 @@ player.y < coin.y+24 &&
 player.y+player.h > coin.y
 ){
 coin.c=true;
+
 score+=10;
+xp+=10;
+
+if(xp >= level*100){
+level++;
+alert("⭐ LEVEL UP! Level " + level);
 }
 }
 
@@ -435,10 +444,11 @@ player.y+38
 
 ui.innerHTML=
 "🪙 Coins: "+score+
+"<br>⭐ XP: "+xp+
+"<br>🏆 Level: "+level+
 "<br>❤️ Lives: "+lives+
 "<br>🏁 Goal: Reach the flag";
 }
-
 function loop(){
 
 update();
