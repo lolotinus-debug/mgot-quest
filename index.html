@@ -89,7 +89,7 @@ let lives=3;
 
 const player={
 x:100,
-y:100,
+y:300,
 w:42,
 h:48,
 vx:0,
@@ -218,22 +218,28 @@ player.y+=player.vy;
 
 player.grounded=false;
 
-for(const p of platforms){
+for(const plat of platforms){
 
-const overlapX=
-player.x < p.x+p.w &&
-player.x+player.w > p.x;
+if(
+player.x < plat.x + plat.w &&
+player.x + player.w > plat.x
+){
 
-const landing=
-player.y+player.h <= p.y &&
-player.y+player.h+player.vy >= p.y;
+const prevBottom =
+player.y + player.h - player.vy;
 
-if(overlapX && landing && player.vy>=0){
+const currentBottom =
+player.y + player.h;
 
-player.y=p.y-player.h;
-player.vy=0;
-player.grounded=true;
-
+if(
+prevBottom <= plat.y &&
+currentBottom >= plat.y &&
+player.vy >= 0
+){
+player.y = plat.y - player.h;
+player.vy = 0;
+player.grounded = true;
+}
 }
 }
 
