@@ -256,7 +256,6 @@ for(const e of enemies){
 
 e.x+=e.dir*2;
 
-if(e.dir===1 && e.x>e.start+80){}
 if(!e.start) e.start=e.x;
 
 if(e.x<e.start-80) e.dir=1;
