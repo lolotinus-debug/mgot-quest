@@ -3,23 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>MGOT Mobile</title>
+<title>MGOT Mobile Fixed</title>
 
 <style>
 body {
     margin:0;
     overflow:hidden;
-    font-family:Arial;
     background:#000;
+    touch-action:none;
+    font-family:Arial;
 }
 
 canvas {
     display:block;
-    margin:auto;
-    background:linear-gradient(#87CEEB,#1e90ff);
+    background:linear-gradient(#7ec8ff,#1e90ff);
 }
 
-/* HUD */
+/* UI */
 #ui{
     position:fixed;
     top:10px;
@@ -32,25 +32,25 @@ canvas {
 /* MENU */
 #menu{
     position:fixed;
-    top:0; left:0;
-    width:100%; height:100%;
+    width:100%;
+    height:100%;
     background:rgba(0,0,0,0.85);
     display:flex;
+    flex-direction:column;
     align-items:center;
     justify-content:center;
-    flex-direction:column;
     color:white;
     z-index:20;
 }
 
-/* MOBILE CONTROLS */
+/* CONTROLS */
 #controls{
     position:fixed;
     bottom:20px;
     width:100%;
     display:flex;
     justify-content:space-between;
-    padding:0 30px;
+    padding:0 40px;
     z-index:15;
 }
 
@@ -62,7 +62,6 @@ canvas {
     font-size:30px;
     background:rgba(255,255,255,0.2);
     color:white;
-    touch-action:none;
 }
 </style>
 </head>
@@ -87,37 +86,46 @@ canvas {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// FIX: stabilná veľkosť
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
 
 const ui = document.getElementById("ui");
 const menu = document.getElementById("menu");
 
-let gameRunning = false;
+let running = false;
 
 const gravity = 0.8;
 const camera = {x:0};
 
 const keys = {};
 
-// PLAYER
+// PLAYER (FIX spawn nad zemou)
 const player = {
-    x:100,y:300,w:40,h:50,
-    vx:0,vy:0,
+    x:100,
+    y:200,
+    w:40,
+    h:50,
+    vx:0,
+    vy:0,
     speed:6,
     jump:16,
     grounded:false,
     lives:3
 };
 
-// LEVEL (mobile friendly)
+// LEVEL (FIX: platforma hneď pod spawnom)
 const level = {
     platforms:[
-        {x:0,y:500,w:3000,h:80},
+        {x:0,y:500,w:5000,h:100},
         {x:300,y:380,w:150,h:20},
         {x:600,y:320,w:150,h:20},
         {x:900,y:260,w:150,h:20},
-        {x:1200,y:200,w:150,h:20},
+        {x:1200,y:220,w:150,h:20},
         {x:1600,y:260,w:150,h:20},
         {x:2000,y:320,w:150,h:20}
     ],
@@ -125,25 +133,27 @@ const level = {
         {x:350,y:340,c:false},
         {x:650,y:280,c:false},
         {x:950,y:220,c:false},
-        {x:1250,y:160,c:false},
-        {x:1650,y:220,c:false}
+        {x:1250,y:180,c:false}
     ],
     enemies:[
-        {x:700,y:460,w:40,h:30,vx:2},
-        {x:1400,y:460,w:40,h:30,vx:-2}
+        {x:800,y:460,w:40,h:30,vx:2}
     ],
-    goal:{x:2700,y:420,w:60,h:80}
+    goal:{x:2500,y:420,w:60,h:80}
 };
 
 let score = 0;
 
-// INPUT (keyboard + mobile)
-document.addEventListener("keydown",e=>keys[e.key]=true);
-document.addEventListener("keyup",e=>keys[e.key]=false);
+// INPUT FIX (space riešený správne)
+document.addEventListener("keydown",e=>{
+    keys[e.key.toLowerCase()] = true;
+});
+document.addEventListener("keyup",e=>{
+    keys[e.key.toLowerCase()] = false;
+});
 
-// MOBILE BUTTONS
+// MOBILE INPUT FIX
 function bind(id,key){
-    const el = document.getElementById(id);
+    const el=document.getElementById(id);
 
     el.addEventListener("touchstart",e=>{
         e.preventDefault();
@@ -155,22 +165,22 @@ function bind(id,key){
         keys[key]=false;
     });
 }
-bind("left","ArrowLeft");
-bind("right","ArrowRight");
+bind("left","arrowleft");
+bind("right","arrowright");
 bind("jump"," ");
 
-// START
 function startGame(){
     menu.style.display="none";
-    gameRunning=true;
+    running=true;
 }
 
 function respawn(){
     player.x=100;
-    player.y=300;
+    player.y=200;
     player.vx=0;
     player.vy=0;
     player.lives--;
+
     if(player.lives<=0){
         menu.style.display="flex";
         menu.innerHTML="<h1>GAME OVER</h1><button onclick='location.reload()'>RESTART</button>";
@@ -178,12 +188,12 @@ function respawn(){
 }
 
 function update(){
-    if(!gameRunning) return;
+    if(!running) return;
 
     player.vx=0;
 
-    if(keys["ArrowLeft"]) player.vx=-player.speed;
-    if(keys["ArrowRight"]) player.vx=player.speed;
+    if(keys["arrowleft"]) player.vx=-player.speed;
+    if(keys["arrowright"]) player.vx=player.speed;
 
     if(keys[" "] && player.grounded){
         player.vy=-player.jump;
@@ -197,22 +207,22 @@ function update(){
 
     player.grounded=false;
 
-    // platforms
-    level.platforms.forEach(p=>{
+    // PLATFORM COLLISION (fixované)
+    for(let p of level.platforms){
         if(
             player.x < p.x+p.w &&
             player.x+player.w > p.x &&
             player.y+player.h <= p.y &&
             player.y+player.h+player.vy >= p.y
         ){
-            player.y=p.y-player.h;
-            player.vy=0;
-            player.grounded=true;
+            player.y = p.y-player.h;
+            player.vy = 0;
+            player.grounded = true;
         }
-    });
+    }
 
     // coins
-    level.coins.forEach(c=>{
+    for(let c of level.coins){
         if(!c.c &&
             player.x < c.x+20 &&
             player.x+player.w > c.x &&
@@ -222,12 +232,12 @@ function update(){
             c.c=true;
             score++;
         }
-    });
+    }
 
     // enemies
-    level.enemies.forEach(e=>{
-        e.x+=e.vx;
-        if(e.x<0||e.x>3000) e.vx*=-1;
+    for(let e of level.enemies){
+        e.x += e.vx;
+        if(e.x<0 || e.x>3000) e.vx*=-1;
 
         if(
             player.x < e.x+e.w &&
@@ -237,12 +247,11 @@ function update(){
         ){
             respawn();
         }
-    });
+    }
 
-    // camera follow
     camera.x = player.x - 200;
 
-    if(player.y>900) respawn();
+    if(player.y>1000) respawn();
 }
 
 function draw(){
@@ -250,25 +259,25 @@ function draw(){
 
     // platforms
     ctx.fillStyle="#2e8b57";
-    level.platforms.forEach(p=>{
+    for(let p of level.platforms){
         ctx.fillRect(p.x-camera.x,p.y,p.w,p.h);
-    });
+    }
 
     // coins
     ctx.fillStyle="gold";
-    level.coins.forEach(c=>{
+    for(let c of level.coins){
         if(!c.c){
             ctx.beginPath();
             ctx.arc(c.x-camera.x,c.y,10,0,Math.PI*2);
             ctx.fill();
         }
-    });
+    }
 
     // enemies
     ctx.fillStyle="purple";
-    level.enemies.forEach(e=>{
+    for(let e of level.enemies){
         ctx.fillRect(e.x-camera.x,e.y,e.w,e.h);
-    });
+    }
 
     // goal
     ctx.fillStyle="lime";
@@ -278,9 +287,7 @@ function draw(){
     ctx.fillStyle="red";
     ctx.fillRect(player.x-camera.x,player.y,player.w,player.h);
 
-    ui.innerHTML =
-        "MGOT: " + score +
-        " | Lives: " + player.lives;
+    ui.innerHTML = `MGOT: ${score} | Lives: ${player.lives}`;
 }
 
 function loop(){
