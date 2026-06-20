@@ -3,120 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MGOT FIX</title>
-
+<title>MGOT Stable</title>
 <style>
-body { margin:0; overflow:hidden; background:#111; }
+body { margin:0; overflow:hidden; background:#87CEEB; }
 canvas { display:block; }
 </style>
 </head>
 <body>
 
-<canvas id="c"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-const c = document.getElementById("c");
-const ctx = c.getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-c.width = window.innerWidth;
-c.height = window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// FIX: konštantná gravitácia
 const GRAVITY = 0.8;
 
+// INPUT
 const keys = {};
-
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 // PLAYER
-const p = {
+const player = {
     x: 100,
     y: 100,
     w: 40,
     h: 50,
     vx: 0,
     vy: 0,
-    speed: 6,
-    jump: 16,
+    speed: 5,
+    jump: 14,
     grounded: false
 };
 
-// FIX: zem je JEDNA veľká platforma (test stabilita)
+// FIXED WORLD (NEZMENÍ SA)
+const groundY = 500;
+
 const platforms = [
-    { x: 0, y: 500, w: 5000, h: 200 }, // OBROVSKÁ ZEM
-    { x: 300, y: 380, w: 150, h: 20 },
-    { x: 600, y: 320, w: 150, h: 20 },
-    { x: 900, y: 260, w: 150, h: 20 }
+    {x:0, y:groundY, w:5000, h:200}, // HLAVNÁ ZEM
+    {x:300, y:380, w:150, h:20},
+    {x:600, y:320, w:150, h:20},
+    {x:900, y:260, w:150, h:20}
 ];
 
 // CAMERA
-let camX = 0;
+let cameraX = 0;
 
 function update(){
 
-    // reset horizontal
-    p.vx = 0;
+    // reset
+    player.vx = 0;
 
-    if(keys["a"] || keys["arrowleft"]) p.vx = -p.speed;
-    if(keys["d"] || keys["arrowright"]) p.vx = p.speed;
+    if(keys["a"] || keys["arrowleft"]) player.vx = -player.speed;
+    if(keys["d"] || keys["arrowright"]) player.vx = player.speed;
 
-    if((keys[" "] || keys["w"] || keys["arrowup"]) && p.grounded){
-        p.vy = -p.jump;
-        p.grounded = false;
+    // jump (LEN ak je na zemi)
+    if((keys[" "] || keys["w"] || keys["arrowup"]) && player.grounded){
+        player.vy = -player.jump;
+        player.grounded = false;
     }
 
-    // APPLY X
-    p.x += p.vx;
+    // X movement
+    player.x += player.vx;
 
-    // APPLY Y
-    p.vy += GRAVITY;
-    p.y += p.vy;
+    // Y movement
+    player.vy += GRAVITY;
+    player.y += player.vy;
 
-    // FIX: vždy reset grounded
-    p.grounded = false;
+    // IMPORTANT: vždy reset
+    player.grounded = false;
 
-    // COLLISION (DÔLEŽITÉ: po pohybe Y)
-    for(let plat of platforms){
+    // COLLISION FIX (najdôležitejšia časť)
+    for(let p of platforms){
 
-        const isOverlappingX =
-            p.x < plat.x + plat.w &&
-            p.x + p.w > plat.x;
+        const withinX =
+            player.x < p.x + p.w &&
+            player.x + player.w > p.x;
 
-        const isFallingOntoPlatform =
-            p.y + p.h <= plat.y &&
-            p.y + p.h + p.vy >= plat.y;
+        const hitFromAbove =
+            player.y + player.h >= p.y &&
+            player.y + player.h - player.vy <= p.y;
 
-        if(isOverlappingX && isFallingOntoPlatform){
-            p.y = plat.y - p.h;
-            p.vy = 0;
-            p.grounded = true;
+        if(withinX && hitFromAbove && player.vy >= 0){
+            player.y = p.y - player.h;
+            player.vy = 0;
+            player.grounded = true;
         }
     }
 
-    // camera follow
-    camX = p.x - 200;
+    // CAMERA
+    cameraX = player.x - 200;
 
-    // fail safe (ak spadne)
-    if(p.y > 1000){
-        p.x = 100;
-        p.y = 100;
-        p.vy = 0;
+    // FALL RESET
+    if(player.y > 1000){
+        player.x = 100;
+        player.y = 100;
+        player.vy = 0;
     }
 }
 
 function draw(){
-    ctx.clearRect(0,0,c.width,c.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // platforms
+    // platformy
     ctx.fillStyle = "green";
-    for(let plat of platforms){
-        ctx.fillRect(plat.x - camX, plat.y, plat.w, plat.h);
+    for(let p of platforms){
+        ctx.fillRect(p.x - cameraX, p.y, p.w, p.h);
     }
 
     // player
     ctx.fillStyle = "red";
-    ctx.fillRect(p.x - camX, p.y, p.w, p.h);
+    ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
 }
 
 function loop(){
