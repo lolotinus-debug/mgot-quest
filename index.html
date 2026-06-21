@@ -663,49 +663,96 @@ function drawPlayer(){
 const px = player.x - camX;
 const py = player.y;
 
-// hlava
+// animácia chôdze
+let walk = 0;
+
+if(Math.abs(player.vx) > 0){
+walk = Math.sin(Date.now()/120) * 4;
+}
+ctx.save();
+
+// otočenie podľa smeru
+ctx.translate(px + player.w/2, 0);
+
+if(player.facing === -1){
+ctx.scale(-1,1);
+}
+
+ctx.translate(-(px + player.w/2),0);
+
+// ČIAPKA
+ctx.fillStyle = "#d11";
+ctx.fillRect(px+10,py+4,22,8);
+
+ctx.fillStyle = "#b00";
+ctx.fillRect(px+8,py+10,26,4);
+
+// HLAVA
 ctx.fillStyle="#ffd6a5";
 ctx.beginPath();
-ctx.arc(px+21,py+12,10,0,Math.PI*2);
+ctx.arc(px+21,py+18,10,0,Math.PI*2);
 ctx.fill();
 
-// vlasy
-ctx.fillStyle="#5a3825";
+// OČI
+ctx.fillStyle="#000";
+
 ctx.beginPath();
-ctx.arc(px+21,py+8,10,Math.PI,0);
+ctx.arc(px+18,py+17,1.5,0,Math.PI*2);
 ctx.fill();
 
-// telo
-ctx.fillStyle="#1e90ff";
-ctx.fillRect(px+12,py+20,18,18);
+ctx.beginPath();
+ctx.arc(px+24,py+17,1.5,0,Math.PI*2);
+ctx.fill();
 
-// ruky
+// FÚZY
+ctx.strokeStyle="#3a2a1a";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+ctx.moveTo(px+16,py+22);
+ctx.lineTo(px+26,py+22);
+ctx.stroke();
+
+// TRIČKO MGOT
+ctx.fillStyle="#00d4ff";
+ctx.fillRect(px+12,py+28,18,16);
+
+// MGOT logo
+ctx.fillStyle="white";
+ctx.font="bold 10px Arial";
+ctx.fillText("M",px+18,py+40);
+
+// RUKY
 ctx.strokeStyle="#ffd6a5";
 ctx.lineWidth=4;
 
 ctx.beginPath();
-ctx.moveTo(px+12,py+25);
-ctx.lineTo(px+4,py+32);
+ctx.moveTo(px+12,py+32);
+ctx.lineTo(px+4,py+36);
 ctx.stroke();
 
 ctx.beginPath();
-ctx.moveTo(px+30,py+25);
-ctx.lineTo(px+38,py+32);
+ctx.moveTo(px+30,py+32);
+ctx.lineTo(px+38,py+36);
 ctx.stroke();
 
-// nohy
+// NOHY
 ctx.strokeStyle="#222";
 ctx.lineWidth=4;
 
+// ľavá noha
 ctx.beginPath();
-ctx.moveTo(px+16,py+38);
-ctx.lineTo(px+12,py+48);
+ctx.moveTo(px+16,py+44);
+ctx.lineTo(px+16,py+56+walk);
 ctx.stroke();
 
+// pravá noha
 ctx.beginPath();
-ctx.moveTo(px+26,py+38);
-ctx.lineTo(px+30,py+48);
+ctx.moveTo(px+26,py+44);
+ctx.lineTo(px+26,py+56-walk);
 ctx.stroke();
+
+ctx.restore();
 
 }
 
