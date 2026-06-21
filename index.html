@@ -181,7 +181,10 @@ hearts.push(
 resetPlayer();
 
 }
-
+    
+const mgotLogo = new Image();
+mgotLogo.src = "logo.png";
+    
 loadLevel(1);
 document.addEventListener("keydown",e=>{
 
@@ -580,42 +583,26 @@ ctx.fillStyle="#2e8b57";
 
 function drawCoins(){
 
-const pulse=
+const pulse =
 Math.sin(Date.now()/150)*2;
 
 for(const coin of coins){
 
 if(coin.c) continue;
 
-ctx.fillStyle="#00d4ff";
+const size = 32 + pulse;
 
-ctx.beginPath();
-ctx.arc(
-coin.x-camX,
-coin.y,
-14+pulse,
-0,
-Math.PI*2
-);
-ctx.fill();
-
-ctx.strokeStyle="#7df9ff";
-ctx.lineWidth=3;
-ctx.stroke();
-
-ctx.fillStyle="white";
-ctx.font="bold 12px Arial";
-
-ctx.fillText(
-"M",
-coin.x-camX-4,
-coin.y+4
+ctx.drawImage(
+mgotLogo,
+coin.x - camX - size/2,
+coin.y - size/2,
+size,
+size
 );
 
 }
 
 }
-
 function drawHearts(){
 
 ctx.font="26px Arial";
