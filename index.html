@@ -1028,7 +1028,9 @@ hearts.push(
 loadStage(1);
 
 function checkFinish(){
-
+if(gameLevel===5){
+return;
+}
 if(
 player.x < finish.x+finish.w &&
 player.x+player.w > finish.x &&
@@ -1047,6 +1049,7 @@ nextStage();
 
 let boss={
 active:false,
+dead:false,
 x:3900,
 y:520,
 w:90,
@@ -1058,8 +1061,10 @@ function updateBoss(){
 
 if(gameLevel!==5) return;
 
+if(gameLevel===5 && !boss.dead){
 boss.active=true;
-
+}
+    
 if(!boss.active) return;
 
 if(
@@ -1089,13 +1094,33 @@ boss.y+40
 if(boss.hp<=0){
 
 boss.active=false;
+boss.dead=true;
 
 score+=500;
 
-alert("👑 BOSS DEFEATED!");
+// koniec hry
+if(score > highScore){
+
+highScore = score;
+
+localStorage.setItem(
+"mgotHighScore",
+highScore
+);
 
 }
 
+alert(
+"🏆 CONGRATULATIONS!\n\n"+
+"You defeated the MGOT Boss!\n\n"+
+"Score: "+score+
+"\nXP: "+xp+
+"\nLevel: "+level
+);
+
+location.reload();
+
+}
 }else{
 
 lives--;
@@ -1122,6 +1147,8 @@ if(gameLevel!==5) return;
 
 if(!boss.active) return;
 
+if(boss.dead) return;
+
 ctx.font="72px Arial";
 
 ctx.fillText(
@@ -1131,7 +1158,6 @@ boss.y+60
 );
 
 ctx.fillStyle="red";
-
 ctx.fillRect(
 boss.x-camX,
 boss.y-25,
@@ -1140,14 +1166,13 @@ boss.y-25,
 );
 
 ctx.fillStyle="lime";
-
 ctx.fillRect(
 boss.x-camX,
 boss.y-25,
 boss.hp*10,
 10
 );
-
+    
 }
 
 // =======================
