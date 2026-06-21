@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>MGOT Platform Adventure</title>
+<title>MGOT Adventure Deluxe</title>
 
 <style>
 *{
@@ -14,7 +14,7 @@ box-sizing:border-box;
 
 body{
 overflow:hidden;
-background:#87ceeb;
+background:#87CEEB;
 font-family:Arial,sans-serif;
 }
 
@@ -27,10 +27,11 @@ position:fixed;
 top:10px;
 left:10px;
 color:white;
-font-size:24px;
+font-size:20px;
 font-weight:bold;
 text-shadow:2px 2px 4px black;
 z-index:100;
+line-height:1.5;
 }
 
 .mobile{
@@ -41,21 +42,13 @@ height:80px;
 border:none;
 border-radius:50%;
 font-size:28px;
-background:rgba(255,255,255,0.7);
+background:rgba(255,255,255,0.75);
 z-index:100;
 }
 
-#leftBtn{
-left:20px;
-}
-
-#jumpBtn{
-right:20px;
-}
-
-#rightBtn{
-right:120px;
-}
+#leftBtn{ left:20px; }
+#rightBtn{ left:120px; }
+#jumpBtn{ right:20px; }
 </style>
 </head>
 <body>
@@ -70,27 +63,29 @@ right:120px;
 
 <script>
 
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const ui = document.getElementById("ui");
 
 function resize(){
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 }
-window.addEventListener("resize",resize);
+window.addEventListener("resize", resize);
 resize();
 
-const ui=document.getElementById("ui");
+const GRAVITY = 0.8;
 
-const gravity=0.8;
+let gameLevel = 1;
+let xp = 0;
+let level = 1;
+let score = 0;
+let lives = 3;
+let highScore = Number(localStorage.getItem("mgotHighScore") || 0);
 
-let score=0;
-let lives=3;
+let camX = 0;
 
-let xp=0;
-let level=1;
-
-const player={
+const player = {
 x:100,
 y:300,
 w:42,
@@ -98,85 +93,86 @@ h:48,
 vx:0,
 vy:0,
 speed:6,
-jump:16,
-grounded:false
+jumpPower:16,
+grounded:false,
+doubleJump:true,
+facing:1
 };
 
-let camX=0;
-  
-let gameLevel = 1;
+let left=false;
+let right=false;
+let jump=false;
 
-const platforms=[
-{x:0,y:600,w:5000,h:200},
-
-{x:350,y:500,w:140,h:20},
-{x:600,y:430,w:140,h:20},
-{x:850,y:360,w:140,h:20},
-{x:1100,y:290,w:140,h:20},
-
-{x:1450,y:500,w:150,h:20},
-{x:1750,y:430,w:150,h:20},
-{x:2050,y:350,w:150,h:20},
-
-{x:2500,y:500,w:200,h:20},
-{x:2800,y:420,w:200,h:20},
-{x:3100,y:330,w:200,h:20}
-];
-
-const coins=[
-{x:390,y:450,c:false},
-{x:640,y:380,c:false},
-{x:890,y:310,c:false},
-{x:1140,y:240,c:false},
-
-{x:1490,y:450,c:false},
-{x:1790,y:380,c:false},
-{x:2090,y:300,c:false},
-
-{x:2540,y:450,c:false},
-{x:2840,y:370,c:false},
-{x:3140,y:280,c:false}
-];
-
-const enemies=[
-{x:950,y:320,w:40,h:40,dir:1},
-{x:1900,y:390,w:40,h:40,dir:-1},
-{x:2950,y:290,w:40,h:40,dir:1}
-];
+const platforms=[];
+const coins=[];
+const enemies=[];
+const hearts=[];
+const particles=[];
 
 let finish={
-x:3600,
-y:500,
+x:3000,
+y:450,
 w:40,
-h:100
+h:120
 };
+
+function resetPlayer(){
+player.x=100;
+player.y=300;
+player.vx=0;
+player.vy=0;
+player.doubleJump=true;
+}
+
+function createParticle(x,y){
+particles.push({
+x,
+y,
+vx:(Math.random()-0.5)*6,
+vy:(Math.random()-0.5)*6,
+life:40
+});
+}
+
 function loadLevel(level){
+
+platforms.length=0;
+coins.length=0;
+enemies.length=0;
+hearts.length=0;
 
 if(level===1){
 
-platforms.length=0;
+finish.x=3200;
 
 platforms.push(
 {x:0,y:600,w:5000,h:200},
 {x:350,y:500,w:140,h:20},
-{x:600,y:430,w:140,h:20},
-{x:850,y:360,w:140,h:20},
-{x:1100,y:290,w:140,h:20}
+{x:650,y:420,w:140,h:20},
+{x:950,y:340,w:140,h:20},
+{x:1250,y:260,w:140,h:20},
+{x:1650,y:500,w:200,h:20},
+{x:2050,y:400,w:200,h:20},
+{x:2450,y:320,w:200,h:20}
 );
-finish.x = 2200;
-}
 
-if(level===2){
+coins.push(
+{x:390,y:450,c:false},
+{x:690,y:370,c:false},
+{x:990,y:290,c:false},
+{x:1290,y:210,c:false},
+{x:1690,y:450,c:false},
+{x:2090,y:350,c:false},
+{x:2490,y:270,c:false}
+);
 
-platforms.length=0;
+enemies.push(
+{x:1100,y:300,w:40,h:40,dir:1},
+{x:2200,y:360,w:40,h:40,dir:-1}
+);
 
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:500,y:500,w:120,h:20},
-{x:800,y:420,w:120,h:20},
-{x:1100,y:340,w:120,h:20},
-{x:1400,y:260,w:120,h:20},
-{x:1700,y:180,w:120,h:20}
+hearts.push(
+{x:1850,y:450,c:false}
 );
 
 }
@@ -184,72 +180,102 @@ platforms.push(
 resetPlayer();
 
 }
-let left=false;
-let right=false;
-let jump=false;
 
+loadLevel(1);
 document.addEventListener("keydown",e=>{
-if(e.key==="a"||e.key==="ArrowLeft") left=true;
-if(e.key==="d"||e.key==="ArrowRight") right=true;
-if(e.code==="Space") jump=true;
+
+if(e.key==="a"||e.key==="ArrowLeft"){
+left=true;
+}
+
+if(e.key==="d"||e.key==="ArrowRight"){
+right=true;
+}
+
+if(e.code==="Space"){
+jump=true;
+}
+
 });
 
 document.addEventListener("keyup",e=>{
-if(e.key==="a"||e.key==="ArrowLeft") left=false;
-if(e.key==="d"||e.key==="ArrowRight") right=false;
-if(e.code==="Space") jump=false;
+
+if(e.key==="a"||e.key==="ArrowLeft"){
+left=false;
+}
+
+if(e.key==="d"||e.key==="ArrowRight"){
+right=false;
+}
+
+if(e.code==="Space"){
+jump=false;
+}
+
 });
 
-function hold(btn,action){
+function bindButton(id,callback){
+
+const btn=document.getElementById(id);
 
 btn.addEventListener("pointerdown",()=>{
-action(true);
+callback(true);
 });
 
 btn.addEventListener("pointerup",()=>{
-action(false);
+callback(false);
 });
 
 btn.addEventListener("pointerleave",()=>{
-action(false);
+callback(false);
 });
+
 }
 
-hold(
-document.getElementById("leftBtn"),
-v=>left=v
-);
+bindButton("leftBtn",v=>left=v);
+bindButton("rightBtn",v=>right=v);
+bindButton("jumpBtn",v=>jump=v);
 
-hold(
-document.getElementById("rightBtn"),
-v=>right=v
-);
+let jumpPressed=false;
 
-hold(
-document.getElementById("jumpBtn"),
-v=>jump=v
-);
-
-function resetPlayer(){
-player.x=100;
-player.y=300;
-player.vx=0;
-player.vy=0;
-}
-
-function update(){
+function updatePlayer(){
 
 player.vx=0;
 
-if(left) player.vx=-player.speed;
-if(right) player.vx=player.speed;
+if(left){
+player.vx=-player.speed;
+player.facing=-1;
+}
 
-if(jump && player.grounded){
-player.vy=-player.jump;
+if(right){
+player.vx=player.speed;
+player.facing=1;
+}
+
+if(jump && !jumpPressed){
+
+if(player.grounded){
+
+player.vy=-player.jumpPower;
 player.grounded=false;
+
+}
+else if(player.doubleJump){
+
+player.vy=-player.jumpPower;
+player.doubleJump=false;
+
 }
 
-player.vy+=gravity;
+jumpPressed=true;
+
+}
+
+if(!jump){
+jumpPressed=false;
+}
+
+player.vy+=GRAVITY;
 
 player.x+=player.vx;
 player.y+=player.vy;
@@ -258,59 +284,120 @@ player.grounded=false;
 
 for(const plat of platforms){
 
+const overlapX=
+player.x < plat.x+plat.w &&
+player.x+player.w > plat.x;
+
+if(!overlapX) continue;
+
+const prevBottom=
+player.y+player.h-player.vy;
+
+const currentBottom=
+player.y+player.h;
+
 if(
-player.x < plat.x + plat.w &&
-player.x + player.w > plat.x
+prevBottom<=plat.y &&
+currentBottom>=plat.y &&
+player.vy>=0
 ){
 
-const prevBottom =
-player.y + player.h - player.vy;
+player.y=plat.y-player.h;
+player.vy=0;
+player.grounded=true;
+player.doubleJump=true;
 
-const currentBottom =
-player.y + player.h;
+}
 
-if(
-prevBottom <= plat.y &&
-currentBottom >= plat.y &&
-player.vy >= 0
-){
-player.y = plat.y - player.h;
-player.vy = 0;
-player.grounded = true;
 }
+
 }
-}
+
+function updateCoins(){
 
 for(const coin of coins){
 
 if(coin.c) continue;
 
 if(
-player.x < coin.x+24 &&
-player.x+player.w > coin.x &&
-player.y < coin.y+24 &&
-player.y+player.h > coin.y
+player.x < coin.x+20 &&
+player.x+player.w > coin.x-20 &&
+player.y < coin.y+20 &&
+player.y+player.h > coin.y-20
 ){
+
 coin.c=true;
 
 score+=10;
 xp+=10;
 
-if(xp >= level*100){
+for(let i=0;i<10;i++){
+createParticle(
+coin.x,
+coin.y
+);
+}
+
+if(xp>=level*100){
+
 level++;
-alert("⭐ LEVEL UP! Level " + level);
+
+alert(
+"⭐ LEVEL UP!\nLevel "+level
+);
+
 }
+
 }
+
 }
+
+}
+
+function updateHearts(){
+
+for(const heart of hearts){
+
+if(heart.c) continue;
+
+if(
+player.x < heart.x+20 &&
+player.x+player.w > heart.x-20 &&
+player.y < heart.y+20 &&
+player.y+player.h > heart.y-20
+){
+
+heart.c=true;
+
+if(lives<5){
+lives++;
+}
+
+}
+
+}
+
+}
+
+function updateEnemies(){
 
 for(const e of enemies){
 
+if(e.dead) continue;
+
+if(!e.start){
+e.start=e.x;
+}
+
 e.x+=e.dir*2;
 
-if(!e.start) e.start=e.x;
+if(e.x<e.start-80){
+e.dir=1;
+}
 
-if(e.x<e.start-80) e.dir=1;
-if(e.x>e.start+80) e.dir=-1;
+if(e.x>e.start+80){
+e.dir=-1;
+}
 
 if(
 player.x < e.x+e.w &&
@@ -319,75 +406,77 @@ player.y < e.y+e.h &&
 player.y+player.h > e.y
 ){
 
-const stomp =
-player.vy > 0 &&
-player.y + player.h < e.y + 20;
+const stomp=
+player.vy>0 &&
+player.y+player.h<e.y+15;
 
 if(stomp){
 
-e.dead = true;
+e.dead=true;
 
-player.vy = -12;
+player.vy=-12;
 
-score += 20;
+score+=20;
+xp+=20;
+
+for(let i=0;i<20;i++){
+createParticle(
+e.x+20,
+e.y+20
+);
+}
 
 }else{
 
 lives--;
 
 if(lives<=0){
-alert("GAME OVER");
-location.reload();
-}
 
-resetPlayer();
-}
-}
-}
+if(score>highScore){
 
-if(
-player.x < finish.x+finish.w &&
-player.x+player.w > finish.x &&
-player.y < finish.y+finish.h &&
-player.y+player.h > finish.y
-){
-if(gameLevel===1){
+highScore=score;
 
-alert("🎉 LEVEL 1 COMPLETE!");
-
-gameLevel=2;
-
-loadLevel(2);
-
-
-}else{
-
-alert(
-"🏆 YOU FINISHED THE GAME!\n\nScore: "+score
+localStorage.setItem(
+"mgotHighScore",
+highScore
 );
 
-location.reload();
-}
 }
 
-if(player.y>canvas.height+300){
+alert("💀 GAME OVER");
 
-lives--;
-
-if(lives<=0){
-alert("GAME OVER");
 location.reload();
+
 }
 
 resetPlayer();
-}
-
-camX=player.x-250;
-
-if(camX<0) camX=0;
 
 }
 
+}
+
+}
+
+}
+
+function updateParticles(){
+
+for(let i=particles.length-1;i>=0;i--){
+
+const p=particles[i];
+
+p.x+=p.vx;
+p.y+=p.vy;
+
+p.life--;
+
+if(p.life<=0){
+particles.splice(i,1);
+}
+
+}
+
+}  
 function drawCloud(x,y){
 
 ctx.beginPath();
@@ -398,14 +487,7 @@ ctx.fill();
 
 }
 
-function draw(){
-
-ctx.clearRect(
-0,
-0,
-canvas.width,
-canvas.height
-);
+function drawBackground(){
 
 ctx.fillStyle="#87CEEB";
 ctx.fillRect(
@@ -417,17 +499,21 @@ canvas.height
 
 ctx.fillStyle="white";
 
-for(let i=0;i<12;i++){
+for(let i=0;i<20;i++){
 
-let cx=
-(i*400-camX*0.3)%5000;
+const cloudX=
+(i*350-camX*0.25)%7000;
 
 drawCloud(
-cx,
-120+(i%3)*40
+cloudX,
+80+(i%4)*50
 );
 
 }
+
+}
+
+function drawPlatforms(){
 
 ctx.fillStyle="#2e8b57";
 
@@ -440,7 +526,25 @@ p.w,
 p.h
 );
 
+ctx.fillStyle="#228B22";
+
+ctx.fillRect(
+p.x-camX,
+p.y,
+p.w,
+6
+);
+
+ctx.fillStyle="#2e8b57";
+
 }
+
+}
+
+function drawCoins(){
+
+const pulse=
+Math.sin(Date.now()/150)*2;
 
 for(const coin of coins){
 
@@ -452,7 +556,7 @@ ctx.beginPath();
 ctx.arc(
 coin.x-camX,
 coin.y,
-14,
+14+pulse,
 0,
 Math.PI*2
 );
@@ -471,18 +575,35 @@ coin.x-camX-4,
 coin.y+4
 );
 
-ctx.fillStyle="white";
-ctx.font="12px Arial";
-ctx.fillText(
-"M",
-coin.x-camX-4,
-coin.y+4
-);
 }
 
-for(const e of enemies){
-if(e.dead) continue;
+}
+
+function drawHearts(){
+
+ctx.font="26px Arial";
+
+for(const heart of hearts){
+
+if(heart.c) continue;
+
+ctx.fillText(
+"❤️",
+heart.x-camX,
+heart.y
+);
+
+}
+
+}
+
+function drawEnemies(){
+
 ctx.font="34px Arial";
+
+for(const e of enemies){
+
+if(e.dead) continue;
 
 ctx.fillText(
 "👾",
@@ -492,12 +613,16 @@ e.y+32
 
 }
 
+}
+
+function drawFinish(){
+
 ctx.fillStyle="white";
 
 ctx.fillRect(
 finish.x-camX,
 finish.y,
-5,
+6,
 finish.h
 );
 
@@ -506,16 +631,45 @@ ctx.fillStyle="red";
 ctx.fillRect(
 finish.x-camX,
 finish.y,
-35,
+40,
 20
 );
 
+}
+
+function drawParticles(){
+
+for(const p of particles){
+
+ctx.beginPath();
+
+ctx.arc(
+p.x-camX,
+p.y,
+3,
+0,
+Math.PI*2
+);
+
+ctx.fillStyle="yellow";
+ctx.fill();
+
+}
+
+}
+
+function drawPlayer(){
+
 ctx.font="42px Arial";
 
-const skins=["🧙","🏃","🤖"];
+const skins=[
+"🧙",
+"🏃",
+"🤖"
+];
 
-let frame =
-Math.floor(Date.now()/150)%skins.length;
+const frame=
+Math.floor(Date.now()/180)%skins.length;
 
 ctx.fillText(
 skins[frame],
@@ -523,18 +677,526 @@ player.x-camX,
 player.y+38
 );
 
+}
+
+function updateUI(){
+
 ui.innerHTML=
 "🪙 Coins: "+score+
 "<br>⭐ XP: "+xp+
 "<br>🏆 Level: "+level+
-"<br>🌍 Stage: "+gameLevel+  
+"<br>🌍 Stage: "+gameLevel+
 "<br>❤️ Lives: "+lives+
-"<br>🏁 Goal: Reach the flag";
+"<br>🥇 Best: "+highScore;
+
 }
+
+function render(){
+
+ctx.clearRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+drawBackground();
+
+drawPlatforms();
+
+drawCoins();
+
+drawHearts();
+
+drawEnemies();
+
+drawFinish();
+
+drawParticles();
+
+drawPlayer();
+
+updateUI();
+
+}  
+function nextStage(){
+
+gameLevel++;
+
+if(gameLevel>5){
+
+if(score>highScore){
+
+highScore=score;
+
+localStorage.setItem(
+"mgotHighScore",
+highScore
+);
+
+}
+
+alert(
+"🏆 CONGRATULATIONS!\n\n"+
+"You finished MGOT Adventure Deluxe!\n\n"+
+"Score: "+score+
+"\nXP: "+xp+
+"\nLevel: "+level
+);
+
+location.reload();
+
+return;
+
+}
+
+loadStage(gameLevel);
+
+}
+
+function loadStage(stage){
+
+platforms.length=0;
+coins.length=0;
+enemies.length=0;
+hearts.length=0;
+
+resetPlayer();
+
+if(stage===1){
+
+finish.x=3200;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:350,y:500,w:150,h:20},
+{x:700,y:420,w:150,h:20},
+{x:1050,y:340,w:150,h:20},
+{x:1400,y:260,w:150,h:20}
+);
+
+coins.push(
+{x:390,y:450,c:false},
+{x:740,y:370,c:false},
+{x:1090,y:290,c:false},
+{x:1440,y:210,c:false}
+);
+
+enemies.push(
+{x:900,y:560,w:40,h:40,dir:1}
+);
+
+}
+
+else if(stage===2){
+
+finish.x=2600;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:500,y:520,w:120,h:20},
+{x:800,y:430,w:120,h:20},
+{x:1100,y:340,w:120,h:20},
+{x:1400,y:250,w:120,h:20},
+{x:1700,y:340,w:120,h:20},
+{x:2000,y:430,w:120,h:20}
+);
+
+coins.push(
+{x:530,y:470,c:false},
+{x:830,y:380,c:false},
+{x:1130,y:290,c:false},
+{x:1430,y:200,c:false},
+{x:1730,y:290,c:false}
+);
+
+enemies.push(
+{x:1200,y:300,w:40,h:40,dir:1},
+{x:1900,y:390,w:40,h:40,dir:-1}
+);
+
+}
+
+else if(stage===3){
+
+finish.x=3200;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:450,y:520,w:180,h:20},
+{x:900,y:450,w:180,h:20},
+{x:1350,y:380,w:180,h:20},
+{x:1800,y:310,w:180,h:20},
+{x:2250,y:240,w:180,h:20}
+);
+
+coins.push(
+{x:500,y:470,c:false},
+{x:950,y:400,c:false},
+{x:1400,y:330,c:false},
+{x:1850,y:260,c:false},
+{x:2300,y:190,c:false}
+);
+
+enemies.push(
+{x:1000,y:410,w:40,h:40,dir:1},
+{x:1900,y:270,w:40,h:40,dir:-1}
+);
+
+hearts.push(
+{x:2100,y:200,c:false}
+);
+
+}
+
+else if(stage===4){
+
+finish.x=3400;
+
+platforms.push(
+{x:0,y:600,w:5000,h:200},
+{x:400,y:500,w:120,h:20},
+{x:700,y:420,w:120,h:20},
+{x:1000,y:340,w:120,h:20},
+{x:1300,y:260,w:120,h:20},
+{x:1600,y:180,w:120,h:20},
+{x:1900,y:260,w:120,h:20},
+{x:2200,y:340,w:120,h:20},
+{x:2500,y:420,w:120,h:20}
+);
+
+coins.push(
+{x:430,y:450,c:false},
+{x:730,y:370,c:false},
+{x:1030,y:290,c:false},
+{x:1330,y:210,c:false},
+{x:1630,y:130,c:false}
+);
+
+enemies.push(
+{x:1500,y:140,w:40,h:40,dir:1},
+{x:2300,y:300,w:40,h:40,dir:-1}
+);
+
+}
+
+else if(stage===5){
+
+finish.x=4200;
+
+platforms.push(
+{x:0,y:600,w:6000,h:200},
+{x:600,y:500,w:200,h:20},
+{x:1100,y:420,w:200,h:20},
+{x:1600,y:340,w:200,h:20},
+{x:2100,y:260,w:200,h:20},
+{x:2600,y:180,w:200,h:20},
+{x:3200,y:260,w:200,h:20},
+{x:3700,y:340,w:200,h:20}
+);
+
+coins.push(
+{x:650,y:450,c:false},
+{x:1150,y:370,c:false},
+{x:1650,y:290,c:false},
+{x:2150,y:210,c:false},
+{x:2650,y:130,c:false},
+{x:3250,y:210,c:false}
+);
+
+enemies.push(
+{x:1800,y:300,w:40,h:40,dir:1},
+{x:3000,y:220,w:40,h:40,dir:-1},
+{x:3600,y:300,w:40,h:40,dir:1}
+);
+
+hearts.push(
+{x:3400,y:220,c:false}
+);
+
+}
+
+}
+
+loadStage(1);
+
+function checkFinish(){
+
+if(
+player.x < finish.x+finish.w &&
+player.x+player.w > finish.x &&
+player.y < finish.y+finish.h &&
+player.y+player.h > finish.y
+){
+
+alert(
+"🎉 STAGE "+gameLevel+" COMPLETE!"
+);
+
+nextStage();
+
+}
+
+}  
+// =======================
+// BOSS SYSTEM
+// =======================
+
+let boss={
+active:false,
+x:3900,
+y:520,
+w:90,
+h:90,
+hp:10
+};
+
+function updateBoss(){
+
+if(gameLevel!==5) return;
+
+boss.active=true;
+
+if(!boss.active) return;
+
+if(
+player.x < boss.x+boss.w &&
+player.x+player.w > boss.x &&
+player.y < boss.y+boss.h &&
+player.y+player.h > boss.y
+){
+
+const stomp=
+player.vy>0 &&
+player.y+player.h<boss.y+25;
+
+if(stomp){
+
+boss.hp--;
+
+player.vy=-14;
+
+for(let i=0;i<30;i++){
+createParticle(
+boss.x+40,
+boss.y+40
+);
+}
+
+if(boss.hp<=0){
+
+boss.active=false;
+
+score+=500;
+
+alert("👑 BOSS DEFEATED!");
+
+}
+
+}else{
+
+lives--;
+
+resetPlayer();
+
+if(lives<=0){
+
+alert("GAME OVER");
+
+location.reload();
+
+}
+
+}
+
+}
+
+}
+
+function drawBoss(){
+
+if(gameLevel!==5) return;
+
+if(!boss.active) return;
+
+ctx.font="72px Arial";
+
+ctx.fillText(
+"👹",
+boss.x-camX,
+boss.y+60
+);
+
+ctx.fillStyle="red";
+
+ctx.fillRect(
+boss.x-camX,
+boss.y-25,
+100,
+10
+);
+
+ctx.fillStyle="lime";
+
+ctx.fillRect(
+boss.x-camX,
+boss.y-25,
+boss.hp*10,
+10
+);
+
+}
+
+// =======================
+// SPECIAL BACKGROUNDS
+// =======================
+
+function drawStageEffects(){
+
+if(gameLevel===2){
+
+ctx.fillStyle="rgba(255,120,0,0.15)";
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+}
+
+if(gameLevel===3){
+
+ctx.fillStyle="rgba(0,255,120,0.12)";
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+}
+
+if(gameLevel===4){
+
+ctx.fillStyle="rgba(180,220,255,0.18)";
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+}
+
+if(gameLevel===5){
+
+ctx.fillStyle="rgba(60,60,60,0.25)";
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+}
+
+}
+
+// =======================
+// CAMERA
+// =======================
+
+function updateCamera(){
+
+camX=
+player.x-
+canvas.width*0.35;
+
+if(camX<0){
+camX=0;
+}
+
+}
+
+// =======================
+// FALL DAMAGE
+// =======================
+
+function checkDeath(){
+
+if(
+player.y>
+canvas.height+500
+){
+
+lives--;
+
+if(lives<=0){
+
+alert(
+"💀 GAME OVER"
+);
+
+location.reload();
+
+}
+
+resetPlayer();
+
+}
+
+}
+
+// =======================
+// MASTER UPDATE
+// =======================
+
+function updateGame(){
+
+updatePlayer();
+
+updateCoins();
+
+updateHearts();
+
+updateEnemies();
+
+updateBoss();
+
+updateParticles();
+
+updateCamera();
+
+checkFinish();
+
+checkDeath();
+
+}
+
+// =======================
+// MASTER RENDER
+// =======================
+
+function renderGame(){
+
+render();
+
+drawStageEffects();
+
+drawBoss();
+
+}
+
+// =======================
+// GAME LOOP
+// =======================
+
 function loop(){
 
-update();
-draw();
+updateGame();
+
+renderGame();
 
 requestAnimationFrame(
 loop
@@ -545,6 +1207,5 @@ loop
 loop();
 
 </script>
-
 </body>
-</html>
+</html>  
