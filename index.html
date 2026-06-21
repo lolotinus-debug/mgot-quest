@@ -660,22 +660,54 @@ ctx.fill();
 
 function drawPlayer(){
 
-ctx.font="42px Arial";
+const px = player.x - camX;
+const py = player.y;
 
-const skins=[
-"🧙",
-"🏃",
-"🤖"
-];
+// hlava
+ctx.fillStyle="#ffd6a5";
+ctx.beginPath();
+ctx.arc(px+21,py+12,10,0,Math.PI*2);
+ctx.fill();
 
-const frame=
-Math.floor(Date.now()/180)%skins.length;
+// vlasy
+ctx.fillStyle="#5a3825";
+ctx.beginPath();
+ctx.arc(px+21,py+8,10,Math.PI,0);
+ctx.fill();
 
-ctx.fillText(
-skins[frame],
-player.x-camX,
-player.y+38
-);
+// telo
+ctx.fillStyle="#1e90ff";
+ctx.fillRect(px+12,py+20,18,18);
+
+// ruky
+ctx.strokeStyle="#ffd6a5";
+ctx.lineWidth=4;
+
+ctx.beginPath();
+ctx.moveTo(px+12,py+25);
+ctx.lineTo(px+4,py+32);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(px+30,py+25);
+ctx.lineTo(px+38,py+32);
+ctx.stroke();
+
+// nohy
+ctx.strokeStyle="#222";
+ctx.lineWidth=4;
+
+ctx.beginPath();
+ctx.moveTo(px+16,py+38);
+ctx.lineTo(px+12,py+48);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(px+26,py+38);
+ctx.lineTo(px+30,py+48);
+ctx.stroke();
+
+}
 
 }
 
