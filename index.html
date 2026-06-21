@@ -97,6 +97,7 @@ jumpPower:16,
 grounded:false,
 doubleJump:true,
 facing:1
+state:"idle",  
 };
 
 let left=false;
@@ -240,79 +241,119 @@ let jumpPressed=false;
 
 function updatePlayer(){
 
-player.vx=0;
+    // reset horizontálnej rýchlosti
+    player.vx = 0;
 
-if(left){
-player.vx=-player.speed;
-player.facing=-1;
+    // pohyb doľava
+    if(left){
+        player.vx = -player.speed;
+        player.facing = -1;
+    }
+
+    // pohyb doprava
+    if(right){
+        player.vx = player.speed;
+        player.facing = 1;
+    }
+
+    // skok a double jump
+    if(jump && !jumpPressed){
+
+        if(player.grounded){
+
+            player.vy = -player.jumpPower;
+            player.grounded = false;
+
+            // efekt pri skoku
+            for(let i=0;i<8;i++){
+                createParticle(
+                    player.x + player.w/2,
+                    player.y + player.h
+                );
+            }
+
+        }else if(player.doubleJump){
+
+            player.vy = -player.jumpPower;
+            player.doubleJump = false;
+
+            // efekt pri double jump
+            for(let i=0;i<12;i++){
+                createParticle(
+                    player.x + player.w/2,
+                    player.y + player.h
+                );
+            }
+
+        }
+
+        jumpPressed = true;
+    }
+
+    if(!jump){
+        jumpPressed = false;
+    }
+
+    // gravitácia
+    player.vy += GRAVITY;
+
+    // pohyb hráča
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // reset zeme
+    player.grounded = false;
+
+    // kolízie s platformami
+    for(const plat of platforms){
+
+        const overlapX =
+            player.x < plat.x + plat.w &&
+            player.x + player.w > plat.x;
+
+        if(!overlapX) continue;
+
+        const prevBottom =
+            player.y + player.h - player.vy;
+
+        const currentBottom =
+            player.y + player.h;
+
+        if(
+            prevBottom <= plat.y &&
+            currentBottom >= plat.y &&
+            player.vy >= 0
+        ){
+
+            player.y = plat.y - player.h;
+            player.vy = 0;
+            player.grounded = true;
+            player.doubleJump = true;
+
+        }
+
+    }
+
+    // animačné stavy
+    if(!player.grounded){
+
+        if(player.vy < 0){
+            player.state = "jump";
+        }else{
+            player.state = "fall";
+        }
+
+    }else{
+
+        if(Math.abs(player.vx) > 0){
+            player.state = "run";
+        }else{
+            player.state = "idle";
+        }
+
+    }
+
 }
-
-if(right){
-player.vx=player.speed;
-player.facing=1;
-}
-
-if(jump && !jumpPressed){
-
-if(player.grounded){
-
-player.vy=-player.jumpPower;
-player.grounded=false;
-
-}
-else if(player.doubleJump){
-
-player.vy=-player.jumpPower;
-player.doubleJump=false;
-
-}
-
-jumpPressed=true;
-
-}
-
-if(!jump){
-jumpPressed=false;
-}
-
-player.vy+=GRAVITY;
-
-player.x+=player.vx;
-player.y+=player.vy;
-
-player.grounded=false;
-
-for(const plat of platforms){
-
-const overlapX=
-player.x < plat.x+plat.w &&
-player.x+player.w > plat.x;
-
-if(!overlapX) continue;
-
-const prevBottom=
-player.y+player.h-player.vy;
-
-const currentBottom=
-player.y+player.h;
-
-if(
-prevBottom<=plat.y &&
-currentBottom>=plat.y &&
-player.vy>=0
-){
-
-player.y=plat.y-player.h;
-player.vy=0;
-player.grounded=true;
-player.doubleJump=true;
-
-}
-
-}
-
-}
-
 function updateCoins(){
 
 for(const coin of coins){
@@ -660,41 +701,35 @@ ctx.fill();
 
 function drawPlayer(){
 
-const px = player.x - camX;
-const py = player.y;
+const px=player.x-camX;
+const py=player.y;
 
-// animácia chôdze
-let walk = 0;
-
-if(Math.abs(player.vx) > 0){
-walk = Math.sin(Date.now()/120) * 4;
-}
 ctx.save();
 
-// otočenie podľa smeru
-ctx.translate(px + player.w/2, 0);
+ctx.translate(px+21,0);
 
-if(player.facing === -1){
+if(player.facing===-1){
 ctx.scale(-1,1);
 }
 
-ctx.translate(-(px + player.w/2),0);
+ctx.translate(-(px+21),0);
 
-// ČIAPKA
-ctx.fillStyle = "#d11";
+// čiapka
+ctx.fillStyle="#d11";
 ctx.fillRect(px+10,py+4,22,8);
 
-ctx.fillStyle = "#b00";
+ctx.fillStyle="#b00";
 ctx.fillRect(px+8,py+10,26,4);
 
-// HLAVA
+// hlava
 ctx.fillStyle="#ffd6a5";
+
 ctx.beginPath();
 ctx.arc(px+21,py+18,10,0,Math.PI*2);
 ctx.fill();
 
-// OČI
-ctx.fillStyle="#000";
+// oči
+ctx.fillStyle="black";
 
 ctx.beginPath();
 ctx.arc(px+18,py+17,1.5,0,Math.PI*2);
@@ -704,58 +739,55 @@ ctx.beginPath();
 ctx.arc(px+24,py+17,1.5,0,Math.PI*2);
 ctx.fill();
 
-// FÚZY
-ctx.strokeStyle="#3a2a1a";
-ctx.lineWidth=2;
-
-ctx.beginPath();
-ctx.moveTo(px+16,py+22);
-ctx.lineTo(px+26,py+22);
-ctx.stroke();
-
-// TRIČKO MGOT
+// telo
 ctx.fillStyle="#00d4ff";
 ctx.fillRect(px+12,py+28,18,16);
 
-// MGOT logo
 ctx.fillStyle="white";
 ctx.font="bold 10px Arial";
 ctx.fillText("M",px+18,py+40);
 
-// RUKY
-ctx.strokeStyle="#ffd6a5";
-ctx.lineWidth=4;
-
-ctx.beginPath();
-ctx.moveTo(px+12,py+32);
-ctx.lineTo(px+4,py+36);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(px+30,py+32);
-ctx.lineTo(px+38,py+36);
-ctx.stroke();
-
-// NOHY
+// nohy
 ctx.strokeStyle="#222";
 ctx.lineWidth=4;
 
-// ľavá noha
+let leg1=0;
+let leg2=0;
+
+if(player.state==="run"){
+
+leg1=Math.sin(Date.now()/100)*6;
+leg2=-leg1;
+
+}
+
+if(player.state==="jump"){
+
+leg1=-5;
+leg2=-5;
+
+}
+
+if(player.state==="fall"){
+
+leg1=5;
+leg2=5;
+
+}
+
 ctx.beginPath();
 ctx.moveTo(px+16,py+44);
-ctx.lineTo(px+16,py+56+walk);
+ctx.lineTo(px+16,py+56+leg1);
 ctx.stroke();
 
-// pravá noha
 ctx.beginPath();
 ctx.moveTo(px+26,py+44);
-ctx.lineTo(px+26,py+56-walk);
+ctx.lineTo(px+26,py+56+leg2);
 ctx.stroke();
 
 ctx.restore();
 
 }
-
 
 
 function updateUI(){
