@@ -3,523 +3,909 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>MGOT Adventure Deluxe</title>
+
+<title>MGOT FPS</title>
 
 <style>
+
 *{
 margin:0;
 padding:0;
 box-sizing:border-box;
 }
 
-body{
+html,body{
+width:100%;
+height:100%;
 overflow:hidden;
-background:#87CEEB;
+background:#000;
 font-family:Arial,sans-serif;
-
-user-select:none;
--webkit-user-select:none;
--webkit-touch-callout:none;
-touch-action:none;
 }
-.mobile{
-position:fixed;
-bottom:20px;
-width:80px;
-height:80px;
-border:none;
-border-radius:50%;
-font-size:28px;
-background:rgba(255,255,255,0.75);
-z-index:100;
 
-user-select:none;
--webkit-user-select:none;
--webkit-touch-callout:none;
-touch-action:none;
-}
-canvas{
+#game{
 display:block;
+width:100vw;
+height:100vh;
+background:#111;
+cursor:none;
 }
 
-#ui{
+#hud{
 position:fixed;
-top:10px;
-left:10px;
+top:15px;
+left:15px;
 color:white;
-font-size:20px;
-font-weight:bold;
+font-size:18px;
+z-index:100;
 text-shadow:2px 2px 4px black;
-z-index:100;
-line-height:1.5;
 }
 
-.mobile{
+#crosshair{
 position:fixed;
-bottom:20px;
-width:80px;
-height:80px;
-border:none;
-border-radius:50%;
-font-size:28px;
-background:rgba(255,255,255,0.75);
+left:50%;
+top:50%;
+width:20px;
+height:20px;
+margin-left:-10px;
+margin-top:-10px;
+pointer-events:none;
 z-index:100;
 }
 
-#leftBtn{ left:20px; }
-#rightBtn{ left:120px; }
-#jumpBtn{ right:20px; }
+#crosshair:before{
+content:"";
+position:absolute;
+left:9px;
+top:0;
+width:2px;
+height:20px;
+background:white;
+}
+
+#crosshair:after{
+content:"";
+position:absolute;
+left:0;
+top:9px;
+width:20px;
+height:2px;
+background:white;
+}
+
+#startScreen{
+position:fixed;
+inset:0;
+display:flex;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+background:#000;
+color:white;
+z-index:500;
+}
+
+#startBtn{
+padding:15px 30px;
+font-size:20px;
+cursor:pointer;
+border:none;
+border-radius:10px;
+background:#00ff88;
+font-weight:bold;
+}
+
 </style>
 </head>
+
 <body>
 
-<div id="ui"></div>
+<div id="hud">
+<div>HP: <span id="hp">100</span></div>
+<div>Score: <span id="score">0</span></div>
+<div>Ammo: <span id="ammo">30</span></div>
+</div>
 
-<button id="leftBtn" class="mobile">◀</button>
-<button id="rightBtn" class="mobile">▶</button>
-<button id="jumpBtn" class="mobile">⬆</button>
+<div id="crosshair"></div>
+
+<div id="startScreen">
+<h1>MGOT FPS</h1>
+<br>
+<button id="startBtn">
+START GAME
+</button>
+</div>
 
 <canvas id="game"></canvas>
 
 <script>
-document.addEventListener("contextmenu", e=>{
-e.preventDefault();
-});
 
-document.addEventListener("selectstart", e=>{
-e.preventDefault();
-});
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const ui = document.getElementById("ui");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
 function resize(){
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
 }
-window.addEventListener("resize", resize);
+
 resize();
 
-const GRAVITY = 0.8;
+window.addEventListener("resize",resize);
 
-let gameLevel = 1;
-let xp = 0;
-let level = 1;
-let score = 0;
-let lives = 3;
-let highScore = Number(localStorage.getItem("mgotHighScore") || 0);
+const hpEl=document.getElementById("hp");
+const scoreEl=document.getElementById("score");
+const ammoEl=document.getElementById("ammo");
 
-let camX = 0;
+let gameStarted=false;
 
-const player = {
-x:100,
-y:300,
-w:42,
-h:48,
-vx:0,
-vy:0,
+const player={
+
+x:0,
+y:0,
+
+angle:0,
+
 speed:6,
-jumpPower:16,
-grounded:false,
-doubleJump:true,
-facing:1,
-state:"idle"  
+
+hp:100,
+
+score:0,
+
+ammo:30
+
 };
 
-let left=false;
-let right=false;
-let jump=false;
+const keys={};
 
-const platforms=[];
-const coins=[];
-const enemies=[];
-const hearts=[];
-const particles=[];
+window.addEventListener("keydown",e=>{
 
-let finish={
-x:3000,
-y:450,
-w:40,
-h:120
-};
-
-function resetPlayer(){
-player.x=100;
-player.y=300;
-player.vx=0;
-player.vy=0;
-player.doubleJump=true;
-}
-
-function createParticle(x,y){
-particles.push({
-x,
-y,
-vx:(Math.random()-0.5)*6,
-vy:(Math.random()-0.5)*6,
-life:40
-});
-}
-
-function loadLevel(level){
-
-platforms.length=0;
-coins.length=0;
-enemies.length=0;
-hearts.length=0;
-
-if(level===1){
-
-finish.x=3200;
-
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:350,y:500,w:140,h:20},
-{x:650,y:420,w:140,h:20},
-{x:950,y:340,w:140,h:20},
-{x:1250,y:260,w:140,h:20},
-{x:1650,y:500,w:200,h:20},
-{x:2050,y:400,w:200,h:20},
-{x:2450,y:320,w:200,h:20}
-);
-
-coins.push(
-{x:390,y:450,c:false},
-{x:690,y:370,c:false},
-{x:990,y:290,c:false},
-{x:1290,y:210,c:false},
-{x:1690,y:450,c:false},
-{x:2090,y:350,c:false},
-{x:2490,y:270,c:false}
-);
-
-enemies.push(
-{x:1100,y:300,w:40,h:40,dir:1},
-{x:2200,y:360,w:40,h:40,dir:-1}
-);
-
-hearts.push(
-{x:1850,y:450,c:false}
-);
-
-}
-
-resetPlayer();
-
-}
-    
-const mgotLogo = new Image();
-mgotLogo.src = "ikona.png";
-    
-loadLevel(1);
-document.addEventListener("keydown",e=>{
-
-if(e.key==="a"||e.key==="ArrowLeft"){
-left=true;
-}
-
-if(e.key==="d"||e.key==="ArrowRight"){
-right=true;
-}
-
-if(e.code==="Space"){
-jump=true;
-}
+keys[e.key.toLowerCase()]=true;
 
 });
 
-document.addEventListener("keyup",e=>{
+window.addEventListener("keyup",e=>{
 
-if(e.key==="a"||e.key==="ArrowLeft"){
-left=false;
-}
-
-if(e.key==="d"||e.key==="ArrowRight"){
-right=false;
-}
-
-if(e.code==="Space"){
-jump=false;
-}
+keys[e.key.toLowerCase()]=false;
 
 });
 
-function bindButton(id,callback){
+document.getElementById("startBtn")
+.addEventListener("click",()=>{
 
-const btn=document.getElementById(id);
+document.getElementById("startScreen")
+.style.display="none";
 
-btn.addEventListener("pointerdown",()=>{
-callback(true);
+canvas.requestPointerLock();
+
+gameStarted=true;
+
 });
 
-btn.addEventListener("pointerup",()=>{
-callback(false);
+let mouseX=0;
+let mouseY=0;
+
+document.addEventListener("mousemove",e=>{
+
+mouseX=e.clientX;
+mouseY=e.clientY;
+
 });
-
-btn.addEventListener("pointerleave",()=>{
-callback(false);
-});
-
-}
-
-bindButton("leftBtn",v=>left=v);
-bindButton("rightBtn",v=>right=v);
-bindButton("jumpBtn",v=>jump=v);
-
-let jumpPressed=false;
 
 function updatePlayer(){
 
-    // reset horizontálnej rýchlosti
-    player.vx = 0;
+if(keys["w"]){
+player.y-=player.speed;
+}
 
-    // pohyb doľava
-    if(left){
-        player.vx = -player.speed;
-        player.facing = -1;
-    }
+if(keys["s"]){
+player.y+=player.speed;
+}
 
-    // pohyb doprava
-    if(right){
-        player.vx = player.speed;
-        player.facing = 1;
-    }
+if(keys["a"]){
+player.x-=player.speed;
+}
 
-    // skok a double jump
-    if(jump && !jumpPressed){
-
-        if(player.grounded){
-
-            player.vy = -player.jumpPower;
-            player.grounded = false;
-
-            // efekt pri skoku
-            for(let i=0;i<8;i++){
-                createParticle(
-                    player.x + player.w/2,
-                    player.y + player.h
-                );
-            }
-
-        }else if(player.doubleJump){
-
-            player.vy = -player.jumpPower;
-            player.doubleJump = false;
-
-            // efekt pri double jump
-            for(let i=0;i<12;i++){
-                createParticle(
-                    player.x + player.w/2,
-                    player.y + player.h
-                );
-            }
-
-        }
-
-        jumpPressed = true;
-    }
-
-    if(!jump){
-        jumpPressed = false;
-    }
-
-    // gravitácia
-    player.vy += GRAVITY;
-
-    // pohyb hráča
-    player.x += player.vx;
-    player.y += player.vy;
-
-    // reset zeme
-    player.grounded = false;
-
-    // kolízie s platformami
-    for(const plat of platforms){
-
-        const overlapX =
-            player.x < plat.x + plat.w &&
-            player.x + player.w > plat.x;
-
-        if(!overlapX) continue;
-
-        const prevBottom =
-            player.y + player.h - player.vy;
-
-        const currentBottom =
-            player.y + player.h;
-
-        if(
-            prevBottom <= plat.y &&
-            currentBottom >= plat.y &&
-            player.vy >= 0
-        ){
-
-            player.y = plat.y - player.h;
-            player.vy = 0;
-            player.grounded = true;
-            player.doubleJump = true;
-
-        }
-
-    }
-
-    // animačné stavy
-    if(!player.grounded){
-
-        if(player.vy < 0){
-            player.state = "jump";
-        }else{
-            player.state = "fall";
-        }
-
-    }else{
-
-        if(Math.abs(player.vx) > 0){
-            player.state = "run";
-        }else{
-            player.state = "idle";
-        }
-
-    }
+if(keys["d"]){
+player.x+=player.speed;
+}
 
 }
-function updateCoins(){
 
-for(const coin of coins){
+function drawFloor(){
 
-if(coin.c) continue;
+ctx.fillStyle="#1a1a1a";
 
-if(
-player.x < coin.x+20 &&
-player.x+player.w > coin.x-20 &&
-player.y < coin.y+20 &&
-player.y+player.h > coin.y-20
-){
-
-coin.c=true;
-
-score+=10;
-xp+=10;
-
-for(let i=0;i<25;i++){
-createParticle(
-coin.x,
-coin.y
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
 );
+
+const size=80;
+
+ctx.strokeStyle="#222";
+
+for(let x=0;x<canvas.width;x+=size){
+
+ctx.beginPath();
+ctx.moveTo(x,0);
+ctx.lineTo(x,canvas.height);
+ctx.stroke();
+
 }
 
-if(xp>=level*100){
+for(let y=0;y<canvas.height;y+=size){
 
-level++;
-
-}
-
-}
-
-}
-
-}
-
-function updateHearts(){
-
-for(const heart of hearts){
-
-if(heart.c) continue;
-
-if(
-player.x < heart.x+20 &&
-player.x+player.w > heart.x-20 &&
-player.y < heart.y+20 &&
-player.y+player.h > heart.y-20
-){
-
-heart.c=true;
-
-if(lives<5){
-lives++;
-}
+ctx.beginPath();
+ctx.moveTo(0,y);
+ctx.lineTo(canvas.width,y);
+ctx.stroke();
 
 }
 
 }
 
+function drawPlayerMarker(){
+
+ctx.fillStyle="#00ff88";
+
+ctx.beginPath();
+
+ctx.arc(
+canvas.width/2,
+canvas.height/2,
+15,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
 }
+
+function updateHUD(){
+
+hpEl.textContent=player.hp;
+scoreEl.textContent=player.score;
+ammoEl.textContent=player.ammo;
+
+}
+
+function gameLoop(){
+
+if(gameStarted){
+
+updatePlayer();
+
+}
+
+drawFloor();
+
+drawPlayerMarker();
+
+updateHUD();
+
+requestAnimationFrame(gameLoop);
+
+}
+
+gameLoop();
+// ============================
+// WEAPONS
+// ============================
+
+const bullets=[];
+
+let canShoot=true;
+
+const weapon={
+
+damage:25,
+
+fireRate:150,
+
+bulletSpeed:18,
+
+maxAmmo:30
+
+};
+
+// ============================
+// CAMERA
+// ============================
+
+document.addEventListener("mousemove",(e)=>{
+
+if(document.pointerLockElement===canvas){
+
+player.angle+=e.movementX*0.003;
+
+}
+
+});
+
+// ============================
+// SHOOTING
+// ============================
+
+document.addEventListener("mousedown",(e)=>{
+
+if(e.button===0){
+
+shoot();
+
+}
+
+});
+
+function shoot(){
+
+if(!gameStarted) return;
+
+if(!canShoot) return;
+
+if(player.ammo<=0) return;
+
+player.ammo--;
+
+canShoot=false;
+
+setTimeout(()=>{
+
+canShoot=true;
+
+},weapon.fireRate);
+
+bullets.push({
+
+x:player.x,
+
+y:player.y,
+
+vx:Math.cos(player.angle)*weapon.bulletSpeed,
+
+vy:Math.sin(player.angle)*weapon.bulletSpeed,
+
+life:100
+
+});
+
+createMuzzleFlash();
+
+}
+
+// ============================
+// BULLET UPDATE
+// ============================
+
+function updateBullets(){
+
+for(let i=bullets.length-1;i>=0;i--){
+
+const b=bullets[i];
+
+b.x+=b.vx;
+b.y+=b.vy;
+
+b.life--;
+
+if(b.life<=0){
+
+bullets.splice(i,1);
+
+}
+
+}
+
+}
+
+// ============================
+// BULLET DRAW
+// ============================
+
+function drawBullets(){
+
+ctx.fillStyle="yellow";
+
+for(const b of bullets){
+
+const sx=
+canvas.width/2+(b.x-player.x);
+
+const sy=
+canvas.height/2+(b.y-player.y);
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+4,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+}
+
+// ============================
+// MUZZLE FLASH
+// ============================
+
+let flashTimer=0;
+
+function createMuzzleFlash(){
+
+flashTimer=3;
+
+}
+
+function drawMuzzleFlash(){
+
+if(flashTimer<=0) return;
+
+flashTimer--;
+
+ctx.fillStyle="rgba(255,200,50,0.8)";
+
+ctx.beginPath();
+
+ctx.arc(
+
+canvas.width/2+25,
+canvas.height/2,
+
+20+Math.random()*20,
+
+0,
+Math.PI*2
+
+);
+
+ctx.fill();
+
+}
+
+// ============================
+// RELOAD
+// ============================
+
+document.addEventListener("keydown",(e)=>{
+
+if(e.key.toLowerCase()==="r"){
+
+reloadWeapon();
+
+}
+
+});
+
+function reloadWeapon(){
+
+player.ammo=weapon.maxAmmo;
+
+}
+
+// ============================
+// CROSSHAIR SPREAD
+// ============================
+
+let recoil=0;
+
+function addRecoil(){
+
+recoil=10;
+
+}
+
+function updateRecoil(){
+
+recoil*=0.90;
+
+}
+
+// ============================
+// IMPROVED PLAYER DRAW
+// ============================
+
+function drawDirection(){
+
+ctx.strokeStyle="#00ff88";
+
+ctx.lineWidth=4;
+
+ctx.beginPath();
+
+ctx.moveTo(
+canvas.width/2,
+canvas.height/2
+);
+
+ctx.lineTo(
+
+canvas.width/2+
+Math.cos(player.angle)*40,
+
+canvas.height/2+
+Math.sin(player.angle)*40
+
+);
+
+ctx.stroke();
+
+}
+
+// ============================
+// MINIMAP
+// ============================
+
+function drawMiniMap(){
+
+ctx.fillStyle="rgba(0,0,0,0.5)";
+
+ctx.fillRect(
+canvas.width-210,
+10,
+200,
+200
+);
+
+ctx.fillStyle="#00ff88";
+
+ctx.beginPath();
+
+ctx.arc(
+canvas.width-110,
+110,
+6,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+// ============================
+// REPLACE GAME LOOP CONTENT
+// ============================
+
+const oldGameLoop=gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateBullets();
+
+updateRecoil();
+
+}
+
+drawFloor();
+
+drawBullets();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+requestAnimationFrame(gameLoop);
+
+};
+
+gameLoop();
+// ============================
+// ENEMIES
+// ============================
+
+const enemies=[];
+
+const enemyTypes=[
+
+{
+name:"Scout",
+hp:50,
+speed:1.8,
+size:18,
+reward:10
+},
+
+{
+name:"Soldier",
+hp:100,
+speed:1.2,
+size:24,
+reward:20
+},
+
+{
+name:"Tank",
+hp:200,
+speed:0.7,
+size:32,
+reward:50
+}
+
+];
+
+// ============================
+// PLAYER XP
+// ============================
+
+let xp=0;
+let level=1;
+let coins=0;
+
+const xpPerLevel=100;
+
+// ============================
+// SPAWN ENEMY
+// ============================
+
+function spawnEnemy(){
+
+const type=
+enemyTypes[
+Math.floor(
+Math.random()*enemyTypes.length
+)
+];
+
+const angle=
+Math.random()*Math.PI*2;
+
+const distance=
+600+Math.random()*800;
+
+enemies.push({
+
+type:type.name,
+
+hp:type.hp,
+
+maxHp:type.hp,
+
+speed:type.speed,
+
+size:type.size,
+
+reward:type.reward,
+
+x:
+player.x+
+Math.cos(angle)*distance,
+
+y:
+player.y+
+Math.sin(angle)*distance
+
+});
+
+}
+
+// ============================
+// AUTO SPAWN
+// ============================
+
+setInterval(()=>{
+
+if(gameStarted){
+
+if(enemies.length<25){
+
+spawnEnemy();
+
+}
+
+}
+
+},1000);
+
+// ============================
+// UPDATE ENEMIES
+// ============================
 
 function updateEnemies(){
 
-for(const e of enemies){
+for(let e of enemies){
 
-if(e.dead) continue;
+const dx=player.x-e.x;
+const dy=player.y-e.y;
 
-if(!e.start){
-e.start=e.x;
+const dist=Math.hypot(dx,dy);
+
+if(dist>0){
+
+e.x+=(dx/dist)*e.speed;
+e.y+=(dy/dist)*e.speed;
+
 }
 
-e.x+=e.dir*2;
+if(dist<30){
 
-if(e.x<e.start-80){
-e.dir=1;
+player.hp-=0.1;
+
+if(player.hp<0){
+
+player.hp=0;
+
 }
 
-if(e.x>e.start+80){
-e.dir=-1;
 }
 
-if(
-player.x < e.x+e.w &&
-player.x+player.w > e.x &&
-player.y < e.y+e.h &&
-player.y+player.h > e.y
-){
+}
 
-const stomp=
-player.vy>0 &&
-player.y+player.h<e.y+15;
+}
 
-if(stomp){
+// ============================
+// DRAW ENEMIES
+// ============================
 
-e.dead=true;
+function drawEnemies(){
 
-player.vy=-12;
+for(let e of enemies){
 
-score+=20;
-xp+=20;
+const sx=
+canvas.width/2+(e.x-player.x);
+
+const sy=
+canvas.height/2+(e.y-player.y);
+
+ctx.fillStyle="red";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+e.size,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+const hpWidth=50;
+
+ctx.fillStyle="black";
+
+ctx.fillRect(
+sx-hpWidth/2,
+sy-e.size-20,
+hpWidth,
+8
+);
+
+ctx.fillStyle="lime";
+
+ctx.fillRect(
+sx-hpWidth/2,
+sy-e.size-20,
+hpWidth*(e.hp/e.maxHp),
+8
+);
+
+}
+
+}
+
+// ============================
+// BULLET COLLISION
+// ============================
+
+function bulletCollision(){
+
+for(let i=bullets.length-1;i>=0;i--){
+
+const b=bullets[i];
+
+for(let j=enemies.length-1;j>=0;j--){
+
+const e=enemies[j];
+
+const dist=Math.hypot(
+
+b.x-e.x,
+b.y-e.y
+
+);
+
+if(dist<e.size){
+
+e.hp-=weapon.damage;
+
+bullets.splice(i,1);
+
+if(e.hp<=0){
+
+killEnemy(j,e);
+
+}
+
+break;
+
+}
+
+}
+
+}
+
+}
+
+// ============================
+// KILL ENEMY
+// ============================
+
+function killEnemy(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+enemies.splice(index,1);
+
+checkLevelUp();
+
+createKillEffect();
+
+}
+
+// ============================
+// LEVEL SYSTEM
+// ============================
+
+function checkLevelUp(){
+
+const required=
+level*xpPerLevel;
+
+if(xp>=required){
+
+level++;
+
+player.hp=100;
+
+}
+
+}
+
+// ============================
+// KILL EFFECT
+// ============================
+
+const particles=[];
+
+function createKillEffect(){
 
 for(let i=0;i<20;i++){
-createParticle(
-e.x+20,
-e.y+20
-);
-}
 
-}else{
+particles.push({
 
-lives--;
+x:canvas.width/2,
+y:canvas.height/2,
 
-if(lives<=0){
+vx:(Math.random()-0.5)*10,
+vy:(Math.random()-0.5)*10,
 
-if(score>highScore){
+life:40
 
-highScore=score;
-
-localStorage.setItem(
-"mgotHighScore",
-highScore
-);
-
-}
-
-alert("💀 GAME OVER");
-
-location.reload();
-
-}
-
-resetPlayer();
-
-}
-
-}
+});
 
 }
 
@@ -537,25 +923,65 @@ p.y+=p.vy;
 p.life--;
 
 if(p.life<=0){
+
 particles.splice(i,1);
+
+}
+
 }
 
 }
 
-}  
-function drawCloud(x,y){
+function drawParticles(){
 
-ctx.beginPath();
-ctx.arc(x,y,25,0,Math.PI*2);
-ctx.arc(x+25,y-10,30,0,Math.PI*2);
-ctx.arc(x+55,y,25,0,Math.PI*2);
-ctx.fill();
+ctx.fillStyle="orange";
+
+for(const p of particles){
+
+ctx.fillRect(
+p.x,
+p.y,
+4,
+4
+);
 
 }
 
-function drawBackground(){
+}
 
-ctx.fillStyle="#87CEEB";
+// ============================
+// XP HUD
+// ============================
+
+const xpBox=document.createElement("div");
+
+xpBox.style.position="fixed";
+xpBox.style.left="15px";
+xpBox.style.top="90px";
+xpBox.style.color="white";
+xpBox.style.zIndex="999";
+
+document.body.appendChild(xpBox);
+
+function updateXPHud(){
+
+xpBox.innerHTML=
+`
+Level: ${level}<br>
+XP: ${xp}<br>
+Coins: ${coins}
+`;
+
+}
+
+// ============================
+// GAME OVER
+// ============================
+
+function gameOver(){
+
+ctx.fillStyle="rgba(0,0,0,0.8)";
+
 ctx.fillRect(
 0,
 0,
@@ -565,43 +991,145 @@ canvas.height
 
 ctx.fillStyle="white";
 
-for(let i=0;i<20;i++){
+ctx.font="60px Arial";
 
-const cloudX=
-(i*350-camX*0.25)%7000;
-
-drawCloud(
-cloudX,
-80+(i%4)*50
+ctx.fillText(
+"GAME OVER",
+canvas.width/2-180,
+canvas.height/2
 );
+
+}
+
+// ============================
+// PATCH GAME LOOP
+// ============================
+
+const previousGameLoop=gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateBullets();
+
+updateEnemies();
+
+bulletCollision();
+
+updateParticles();
+
+updateRecoil();
+
+}
+
+drawFloor();
+
+drawBullets();
+
+drawEnemies();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(gameLoop);
+
+};
+
+gameLoop();
+// ============================
+// WAVE SYSTEM
+// ============================
+
+let wave=1;
+let enemiesKilledThisWave=0;
+let enemiesNeededForWave=10;
+
+const waveBox=document.createElement("div");
+
+waveBox.style.position="fixed";
+waveBox.style.top="170px";
+waveBox.style.left="15px";
+waveBox.style.color="white";
+waveBox.style.fontSize="18px";
+waveBox.style.zIndex="999";
+
+document.body.appendChild(waveBox);
+
+function updateWaveHUD(){
+
+waveBox.innerHTML=`
+Wave: ${wave}<br>
+Kills: ${enemiesKilledThisWave}/${enemiesNeededForWave}
+`;
+
+}
+
+function nextWave(){
+
+wave++;
+
+enemiesKilledThisWave=0;
+
+enemiesNeededForWave+=5;
+
+for(let i=0;i<wave+5;i++){
+
+spawnEnemy();
 
 }
 
 }
 
-function drawPlatforms(){
+// ============================
+// COIN DROPS
+// ============================
 
-ctx.fillStyle="#2e8b57";
+const coinDrops=[];
 
-for(const p of platforms){
+function dropCoin(x,y,amount){
 
-ctx.fillRect(
-p.x-camX,
-p.y,
-p.w,
-p.h
-);
+coinDrops.push({
 
-ctx.fillStyle="#228B22";
+x,
+y,
 
-ctx.fillRect(
-p.x-camX,
-p.y,
-p.w,
-6
-);
+amount,
 
-ctx.fillStyle="#2e8b57";
+size:12,
+
+rotation:0
+
+});
+
+}
+
+function updateCoins(){
+
+for(let c of coinDrops){
+
+c.rotation+=0.1;
 
 }
 
@@ -609,751 +1137,7008 @@ ctx.fillStyle="#2e8b57";
 
 function drawCoins(){
 
-const pulse =
-Math.sin(Date.now()/150)*3;
+for(let c of coinDrops){
 
-for(const coin of coins){
+const sx=
+canvas.width/2+(c.x-player.x);
 
-if(coin.c) continue;
-
-const size = 34 + pulse;
+const sy=
+canvas.height/2+(c.y-player.y);
 
 ctx.save();
 
-ctx.shadowColor="#00d4ff";
-ctx.shadowBlur=20;
+ctx.translate(sx,sy);
 
-ctx.drawImage(
-mgotLogo,
-coin.x-camX-size/2,
-coin.y-size/2,
-size,
-size
-);
+ctx.rotate(c.rotation);
+
+ctx.fillStyle="gold";
+
+ctx.fillRect(-8,-8,16,16);
 
 ctx.restore();
 
 }
 
 }
-function drawHearts(){
 
-ctx.font="26px Arial";
+function collectCoins(){
 
-for(const heart of hearts){
+for(let i=coinDrops.length-1;i>=0;i--){
 
-if(heart.c) continue;
+const c=coinDrops[i];
 
-ctx.fillText(
-"❤️",
-heart.x-camX,
-heart.y
+const dist=Math.hypot(
+
+player.x-c.x,
+player.y-c.y
+
+);
+
+if(dist<40){
+
+coins+=c.amount;
+
+coinDrops.splice(i,1);
+
+}
+
+}
+
+}
+
+// ============================
+// SHOP
+// ============================
+
+let damageLevel=1;
+let fireRateLevel=1;
+let hpLevel=1;
+
+const shop=document.createElement("div");
+
+shop.style.position="fixed";
+shop.style.right="20px";
+shop.style.top="20px";
+shop.style.background="rgba(0,0,0,0.7)";
+shop.style.padding="15px";
+shop.style.color="white";
+shop.style.zIndex="999";
+shop.style.display="none";
+
+document.body.appendChild(shop);
+
+function updateShop(){
+
+shop.innerHTML=`
+
+<h3>MGOT SHOP</h3>
+
+Coins: ${coins}
+
+<br><br>
+
+<button onclick="buyDamage()">
+Damage Upgrade
+</button>
+
+<br><br>
+
+<button onclick="buyFireRate()">
+Fire Rate Upgrade
+</button>
+
+<br><br>
+
+<button onclick="buyHP()">
+HP Upgrade
+</button>
+
+`;
+
+}
+
+window.buyDamage=function(){
+
+if(coins<100) return;
+
+coins-=100;
+
+damageLevel++;
+
+weapon.damage+=10;
+
+};
+
+window.buyFireRate=function(){
+
+if(coins<150) return;
+
+coins-=150;
+
+fireRateLevel++;
+
+weapon.fireRate=Math.max(
+40,
+weapon.fireRate-10
+);
+
+};
+
+window.buyHP=function(){
+
+if(coins<120) return;
+
+coins-=120;
+
+hpLevel++;
+
+player.hp+=25;
+
+};
+
+document.addEventListener("keydown",(e)=>{
+
+if(e.key==="Tab"){
+
+e.preventDefault();
+
+shop.style.display=
+shop.style.display==="none"
+?
+"block"
+:
+"none";
+
+updateShop();
+
+}
+
+});
+
+// ============================
+// ACHIEVEMENTS
+// ============================
+
+const achievements=[];
+
+function unlockAchievement(name){
+
+if(
+achievements.includes(name)
+) return;
+
+achievements.push(name);
+
+showAchievement(name);
+
+}
+
+function showAchievement(text){
+
+const div=document.createElement("div");
+
+div.style.position="fixed";
+div.style.top="50%";
+div.style.left="50%";
+div.style.transform=
+"translate(-50%,-50%)";
+
+div.style.background="gold";
+div.style.color="black";
+div.style.padding="20px";
+div.style.fontWeight="bold";
+div.style.zIndex="5000";
+
+div.innerText=
+"Achievement Unlocked: "+text;
+
+document.body.appendChild(div);
+
+setTimeout(()=>{
+
+div.remove();
+
+},3000);
+
+}
+
+// ============================
+// BOSSES
+// ============================
+
+function spawnBoss(){
+
+enemies.push({
+
+type:"MGOT BOSS",
+
+hp:1000+(wave*100),
+
+maxHp:1000+(wave*100),
+
+speed:0.6,
+
+size:60,
+
+reward:500,
+
+boss:true,
+
+x:player.x+1000,
+
+y:player.y+1000
+
+});
+
+}
+
+function bossCheck(){
+
+if(wave%5===0){
+
+let found=false;
+
+for(let e of enemies){
+
+if(e.boss){
+
+found=true;
+
+}
+
+}
+
+if(!found){
+
+spawnBoss();
+
+}
+
+}
+
+}
+
+// ============================
+// SAVE SYSTEM
+// ============================
+
+function saveGame(){
+
+localStorage.setItem(
+
+"mgotfps",
+
+JSON.stringify({
+
+coins,
+xp,
+level,
+
+damageLevel,
+fireRateLevel,
+hpLevel
+
+})
+
+);
+
+}
+
+function loadGame(){
+
+const save=
+localStorage.getItem(
+"mgotfps"
+);
+
+if(!save) return;
+
+const data=
+JSON.parse(save);
+
+coins=data.coins||0;
+xp=data.xp||0;
+level=data.level||1;
+
+damageLevel=
+data.damageLevel||1;
+
+fireRateLevel=
+data.fireRateLevel||1;
+
+hpLevel=
+data.hpLevel||1;
+
+}
+
+loadGame();
+
+setInterval(saveGame,5000);
+
+// ============================
+// PATCH KILL FUNCTION
+// ============================
+
+const oldKillEnemy=killEnemy;
+
+killEnemy=function(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(player.score>=10){
+
+unlockAchievement(
+"First Blood"
+);
+
+}
+
+if(player.score>=100){
+
+unlockAchievement(
+"Destroyer"
+);
+
+}
+
+if(enemiesKilledThisWave
+>=
+enemiesNeededForWave){
+
+nextWave();
+
+}
+
+enemies.splice(index,1);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH GAME LOOP
+// ============================
+
+const oldLoopPart4=gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateBullets();
+
+updateEnemies();
+
+updateParticles();
+
+updateCoins();
+
+collectCoins();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+}
+
+drawFloor();
+
+drawCoins();
+
+drawBullets();
+
+drawEnemies();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(gameLoop);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 5
+// MAPS + WALLS + WEAPONS
+// ============================
+
+// ============================
+// WALLS
+// ============================
+
+const walls=[];
+
+function createArena(){
+
+walls.length=0;
+
+for(let i=0;i<40;i++){
+
+walls.push({
+
+x:(Math.random()-0.5)*4000,
+y:(Math.random()-0.5)*4000,
+
+w:100+Math.random()*200,
+h:100+Math.random()*200
+
+});
+
+}
+
+}
+
+createArena();
+
+// ============================
+// WALL DRAW
+// ============================
+
+function drawWalls(){
+
+ctx.fillStyle="#555";
+
+for(const wall of walls){
+
+const sx=
+canvas.width/2+(wall.x-player.x);
+
+const sy=
+canvas.height/2+(wall.y-player.y);
+
+ctx.fillRect(
+sx,
+sy,
+wall.w,
+wall.h
 );
 
 }
 
 }
 
-function drawEnemies(){
+// ============================
+// PLAYER COLLISION
+// ============================
 
-ctx.font="34px Arial";
+function wallCollision(){
+
+for(const wall of walls){
+
+if(
+
+player.x > wall.x-20 &&
+player.x < wall.x+wall.w+20 &&
+player.y > wall.y-20 &&
+player.y < wall.y+wall.h+20
+
+){
+
+if(keys["w"]) player.y+=player.speed;
+if(keys["s"]) player.y-=player.speed;
+if(keys["a"]) player.x+=player.speed;
+if(keys["d"]) player.x-=player.speed;
+
+}
+
+}
+
+}
+
+// ============================
+// WEAPONS
+// ============================
+
+const weapons={
+
+pistol:{
+name:"Pistol",
+damage:25,
+speed:18,
+fireRate:250,
+ammo:12
+},
+
+smg:{
+name:"SMG",
+damage:12,
+speed:20,
+fireRate:70,
+ammo:40
+},
+
+shotgun:{
+name:"Shotgun",
+damage:15,
+speed:16,
+fireRate:500,
+ammo:8
+},
+
+sniper:{
+name:"Sniper",
+damage:120,
+speed:35,
+fireRate:900,
+ammo:5
+},
+
+rocket:{
+name:"Rocket",
+damage:300,
+speed:8,
+fireRate:1200,
+ammo:1
+}
+
+};
+
+let currentWeapon="pistol";
+
+// ============================
+// SWITCH WEAPON
+// ============================
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key==="1")
+equipWeapon("pistol");
+
+if(e.key==="2")
+equipWeapon("smg");
+
+if(e.key==="3")
+equipWeapon("shotgun");
+
+if(e.key==="4")
+equipWeapon("sniper");
+
+if(e.key==="5")
+equipWeapon("rocket");
+
+}
+);
+
+function equipWeapon(name){
+
+currentWeapon=name;
+
+weapon.damage=
+weapons[name].damage;
+
+weapon.bulletSpeed=
+weapons[name].speed;
+
+weapon.fireRate=
+weapons[name].fireRate;
+
+player.ammo=
+weapons[name].ammo;
+
+}
+
+// ============================
+// WEAPON HUD
+// ============================
+
+const weaponHud=
+document.createElement("div");
+
+weaponHud.style.position="fixed";
+weaponHud.style.bottom="20px";
+weaponHud.style.left="20px";
+weaponHud.style.color="white";
+weaponHud.style.zIndex="999";
+
+document.body.appendChild(
+weaponHud
+);
+
+function updateWeaponHUD(){
+
+weaponHud.innerHTML=`
+
+Weapon:
+${weapons[currentWeapon].name}
+
+`;
+
+}
+
+// ============================
+// SHOTGUN SPREAD
+// ============================
+
+const originalShoot=shoot;
+
+shoot=function(){
+
+if(!gameStarted) return;
+
+if(!canShoot) return;
+
+if(player.ammo<=0) return;
+
+player.ammo--;
+
+canShoot=false;
+
+setTimeout(()=>{
+
+canShoot=true;
+
+},weapon.fireRate);
+
+if(currentWeapon==="shotgun"){
+
+for(let i=0;i<6;i++){
+
+const spread=
+(Math.random()-0.5)*0.4;
+
+bullets.push({
+
+x:player.x,
+y:player.y,
+
+vx:
+Math.cos(
+player.angle+spread
+)
+*
+weapon.bulletSpeed,
+
+vy:
+Math.sin(
+player.angle+spread
+)
+*
+weapon.bulletSpeed,
+
+life:50
+
+});
+
+}
+
+}
+
+else{
+
+bullets.push({
+
+x:player.x,
+y:player.y,
+
+vx:
+Math.cos(player.angle)
+*
+weapon.bulletSpeed,
+
+vy:
+Math.sin(player.angle)
+*
+weapon.bulletSpeed,
+
+life:100
+
+});
+
+}
+
+createMuzzleFlash();
+
+};
+
+// ============================
+// ROCKETS
+// ============================
+
+const explosions=[];
+
+function createExplosion(x,y){
+
+explosions.push({
+
+x,
+y,
+
+radius:20,
+
+life:40
+
+});
 
 for(const e of enemies){
 
-if(e.dead) continue;
+const dist=Math.hypot(
 
-ctx.fillText(
-"👾",
-e.x-camX,
-e.y+32
+x-e.x,
+y-e.y
+
 );
+
+if(dist<200){
+
+e.hp-=250;
 
 }
 
 }
 
-function drawFinish(){
+}
 
-ctx.fillStyle="white";
+function updateExplosions(){
 
-ctx.fillRect(
-finish.x-camX,
-finish.y,
-6,
-finish.h
-);
+for(let i=
+explosions.length-1;
+i>=0;
+i--){
 
-ctx.fillStyle="red";
+const ex=
+explosions[i];
 
-ctx.fillRect(
-finish.x-camX,
-finish.y,
-40,
-20
-);
+ex.radius+=4;
+
+ex.life--;
+
+if(ex.life<=0){
+
+explosions.splice(i,1);
 
 }
 
-function drawParticles(){
+}
 
-for(const p of particles){
+}
+
+function drawExplosions(){
+
+for(const ex of explosions){
+
+const sx=
+canvas.width/2+
+(ex.x-player.x);
+
+const sy=
+canvas.height/2+
+(ex.y-player.y);
 
 ctx.beginPath();
 
 ctx.arc(
-p.x-camX,
-p.y,
-3,
+sx,
+sy,
+ex.radius,
 0,
 Math.PI*2
 );
 
-ctx.fillStyle="yellow";
-ctx.fill();
-
-}
-
-}
-
-function drawPlayer(){
-
-const px=player.x-camX;
-const py=player.y;
-
-ctx.save();
-
-ctx.translate(px+21,0);
-
-if(player.facing===-1){
-ctx.scale(-1,1);
-}
-
-ctx.translate(-(px+21),0);
-
-// čiapka
-ctx.fillStyle="#d11";
-ctx.fillRect(px+10,py+4,22,8);
-
-ctx.fillStyle="#b00";
-ctx.fillRect(px+8,py+10,26,4);
-
-// hlava
-ctx.fillStyle="#ffd6a5";
-
-ctx.beginPath();
-ctx.arc(px+21,py+18,10,0,Math.PI*2);
-ctx.fill();
-
-// oči
-ctx.fillStyle="black";
-
-ctx.beginPath();
-ctx.arc(px+18,py+17,1.5,0,Math.PI*2);
-ctx.fill();
-
-ctx.beginPath();
-ctx.arc(px+24,py+17,1.5,0,Math.PI*2);
-ctx.fill();
-
-// telo
-ctx.fillStyle="#00d4ff";
-ctx.fillRect(px+12,py+28,18,16);
-
-ctx.fillStyle="white";
-ctx.font="bold 10px Arial";
-ctx.fillText("M",px+18,py+40);
-
-// nohy
-ctx.strokeStyle="#222";
-ctx.lineWidth=4;
-
-let leg1=0;
-let leg2=0;
-
-if(player.state==="run"){
-
-leg1=Math.sin(Date.now()/100)*6;
-leg2=-leg1;
-
-}
-
-if(player.state==="jump"){
-
-leg1=-5;
-leg2=-5;
-
-}
-
-if(player.state==="fall"){
-
-leg1=5;
-leg2=5;
-
-}
-
-ctx.beginPath();
-ctx.moveTo(px+16,py+44);
-ctx.lineTo(px+16,py+56+leg1);
+ctx.strokeStyle="orange";
+ctx.lineWidth=5;
 ctx.stroke();
 
-ctx.beginPath();
-ctx.moveTo(px+26,py+44);
-ctx.lineTo(px+26,py+56+leg2);
-ctx.stroke();
-
-ctx.restore();
-
-}
-
-
-function updateUI(){
-
-ui.innerHTML=
-"🔷 MGOT: "+score+
-"<br>⭐ XP: "+xp+
-"<br>🏆 Level: "+level+
-"<br>🌍 Stage: "+gameLevel+
-"<br>❤️ Lives: "+lives+
-"<br>🥇 Best: "+highScore;
-
-}
-
-function render(){
-
-ctx.clearRect(
-0,
-0,
-canvas.width,
-canvas.height
-);
-
-drawBackground();
-
-drawPlatforms();
-
-drawCoins();
-
-drawHearts();
-
-drawEnemies();
-
-drawFinish();
-
-drawParticles();
-
-drawPlayer();
-
-updateUI();
-
-}  
-function nextStage(){
-
-gameLevel++;
-
-if(gameLevel>5){
-
-if(score>highScore){
-
-highScore=score;
-
-localStorage.setItem(
-"mgotHighScore",
-highScore
-);
-
-}
-
-alert(
-"🏆 CONGRATULATIONS!\n\n"+
-"You finished MGOT Adventure Deluxe!\n\n"+
-"Score: "+score+
-"\nXP: "+xp+
-"\nLevel: "+level
-);
-
-location.reload();
-
-return;
-
-}
-
-loadStage(gameLevel);
-
-}
-
-function loadStage(stage){
-
-platforms.length=0;
-coins.length=0;
-enemies.length=0;
-hearts.length=0;
-
-resetPlayer();
-
-if(stage===1){
-
-finish.x=3200;
-
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:350,y:500,w:150,h:20},
-{x:700,y:420,w:150,h:20},
-{x:1050,y:340,w:150,h:20},
-{x:1400,y:260,w:150,h:20}
-);
-
-coins.push(
-{x:390,y:450,c:false},
-{x:740,y:370,c:false},
-{x:1090,y:290,c:false},
-{x:1440,y:210,c:false}
-);
-
-enemies.push(
-{x:900,y:560,w:40,h:40,dir:1}
-);
-
-}
-
-else if(stage===2){
-
-finish.x=2600;
-
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:500,y:520,w:120,h:20},
-{x:800,y:430,w:120,h:20},
-{x:1100,y:340,w:120,h:20},
-{x:1400,y:250,w:120,h:20},
-{x:1700,y:340,w:120,h:20},
-{x:2000,y:430,w:120,h:20}
-);
-
-coins.push(
-{x:530,y:470,c:false},
-{x:830,y:380,c:false},
-{x:1130,y:290,c:false},
-{x:1430,y:200,c:false},
-{x:1730,y:290,c:false}
-);
-
-enemies.push(
-{x:1200,y:300,w:40,h:40,dir:1},
-{x:1900,y:390,w:40,h:40,dir:-1}
-);
-
-}
-
-else if(stage===3){
-
-finish.x=3200;
-
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:450,y:520,w:180,h:20},
-{x:900,y:450,w:180,h:20},
-{x:1350,y:380,w:180,h:20},
-{x:1800,y:310,w:180,h:20},
-{x:2250,y:240,w:180,h:20}
-);
-
-coins.push(
-{x:500,y:470,c:false},
-{x:950,y:400,c:false},
-{x:1400,y:330,c:false},
-{x:1850,y:260,c:false},
-{x:2300,y:190,c:false}
-);
-
-enemies.push(
-{x:1000,y:410,w:40,h:40,dir:1},
-{x:1900,y:270,w:40,h:40,dir:-1}
-);
-
-hearts.push(
-{x:2100,y:200,c:false}
-);
-
-}
-
-else if(stage===4){
-
-finish.x=3400;
-
-platforms.push(
-{x:0,y:600,w:5000,h:200},
-{x:400,y:500,w:120,h:20},
-{x:700,y:420,w:120,h:20},
-{x:1000,y:340,w:120,h:20},
-{x:1300,y:260,w:120,h:20},
-{x:1600,y:180,w:120,h:20},
-{x:1900,y:260,w:120,h:20},
-{x:2200,y:340,w:120,h:20},
-{x:2500,y:420,w:120,h:20}
-);
-
-coins.push(
-{x:430,y:450,c:false},
-{x:730,y:370,c:false},
-{x:1030,y:290,c:false},
-{x:1330,y:210,c:false},
-{x:1630,y:130,c:false}
-);
-
-enemies.push(
-{x:1500,y:140,w:40,h:40,dir:1},
-{x:2300,y:300,w:40,h:40,dir:-1}
-);
-
-}
-
-else if(stage===5){
-
-finish.x=4200;
-
-platforms.push(
-{x:0,y:600,w:6000,h:200},
-{x:600,y:500,w:200,h:20},
-{x:1100,y:420,w:200,h:20},
-{x:1600,y:340,w:200,h:20},
-{x:2100,y:260,w:200,h:20},
-{x:2600,y:180,w:200,h:20},
-{x:3200,y:260,w:200,h:20},
-{x:3700,y:340,w:200,h:20}
-);
-
-coins.push(
-{x:650,y:450,c:false},
-{x:1150,y:370,c:false},
-{x:1650,y:290,c:false},
-{x:2150,y:210,c:false},
-{x:2650,y:130,c:false},
-{x:3250,y:210,c:false}
-);
-
-enemies.push(
-{x:1800,y:300,w:40,h:40,dir:1},
-{x:3000,y:220,w:40,h:40,dir:-1},
-{x:3600,y:300,w:40,h:40,dir:1}
-);
-
-hearts.push(
-{x:3400,y:220,c:false}
-);
-
 }
 
 }
 
-loadStage(1);
+// ============================
+// ROCKET IMPACT
+// ============================
 
-function checkFinish(){
-if(gameLevel===5){
-return;
-}
-if(
-player.x < finish.x+finish.w &&
-player.x+player.w > finish.x &&
-player.y < finish.y+finish.h &&
-player.y+player.h > finish.y
+const oldBulletCollision=
+bulletCollision;
+
+bulletCollision=function(){
+
+for(
+let i=bullets.length-1;
+i>=0;
+i--
 ){
 
-nextStage();
+const b=bullets[i];
+
+for(
+let j=enemies.length-1;
+j>=0;
+j--
+){
+
+const e=enemies[j];
+
+const dist=Math.hypot(
+b.x-e.x,
+b.y-e.y
+);
+
+if(dist<e.size){
+
+if(
+currentWeapon==="rocket"
+){
+
+createExplosion(
+b.x,
+b.y
+);
 
 }
 
-}  
-// =======================
-// BOSS SYSTEM
-// =======================
+e.hp-=weapon.damage;
 
-let boss={
-active:false,
-dead:false,
-x:3900,
-y:520,
-w:90,
-h:90,
-hp:10
+bullets.splice(i,1);
+
+if(e.hp<=0){
+
+killEnemy(j,e);
+
+}
+
+break;
+
+}
+
+}
+
+}
+
 };
 
-function updateBoss(){
+// ============================
+// SUPPLY DROPS
+// ============================
 
-if(gameLevel!==5) return;
+const supplyDrops=[];
 
-if(gameLevel===5 && !boss.dead){
-boss.active=true;
+function spawnSupplyDrop(){
+
+supplyDrops.push({
+
+x:
+player.x+
+(Math.random()-0.5)
+*1500,
+
+y:
+player.y+
+(Math.random()-0.5)
+*1500,
+
+size:30
+
+});
+
 }
-    
-if(!boss.active) return;
 
-if(
-player.x < boss.x+boss.w &&
-player.x+player.w > boss.x &&
-player.y < boss.y+boss.h &&
-player.y+player.h > boss.y
+setInterval(()=>{
+
+if(gameStarted){
+
+spawnSupplyDrop();
+
+}
+
+},30000);
+
+function drawSupplyDrops(){
+
+ctx.fillStyle="#00ffff";
+
+for(const s of supplyDrops){
+
+const sx=
+canvas.width/2+
+(s.x-player.x);
+
+const sy=
+canvas.height/2+
+(s.y-player.y);
+
+ctx.fillRect(
+sx,
+sy,
+30,
+30
+);
+
+}
+
+}
+
+function collectSupplyDrops(){
+
+for(
+let i=
+supplyDrops.length-1;
+i>=0;
+i--
 ){
 
-const stomp=
-player.vy>0 &&
-player.y+player.h<boss.y+25;
+const s=
+supplyDrops[i];
 
-if(stomp){
+const dist=
+Math.hypot(
 
-boss.hp--;
+player.x-s.x,
+player.y-s.y
 
-player.vy=-14;
-
-for(let i=0;i<30;i++){
-createParticle(
-boss.x+40,
-boss.y+40
-);
-}
-
-if(boss.hp<=0){
-
-boss.active=false;
-boss.dead=true;
-
-score+=500;
-
-// koniec hry
-if(score > highScore){
-
-highScore = score;
-
-localStorage.setItem(
-"mgotHighScore",
-highScore
 );
 
-}
+if(dist<50){
 
-alert(
-"🏆 CONGRATULATIONS!\n\n"+
-"You defeated the MGOT Boss!\n\n"+
-"Score: "+score+
-"\nXP: "+xp+
-"\nLevel: "+level
-);
+coins+=500;
 
-location.reload();
+xp+=200;
 
-}
-}else{
+supplyDrops.splice(i,1);
 
-lives--;
-
-resetPlayer();
-
-if(lives<=0){
-
-alert("GAME OVER");
-
-location.reload();
-
-}
-
-}
-
-}
-
-}
-
-function drawBoss(){
-
-if(gameLevel!==5) return;
-
-if(!boss.active) return;
-
-if(boss.dead) return;
-
-ctx.font="72px Arial";
-
-ctx.fillText(
-"👹",
-boss.x-camX,
-boss.y+60
-);
-
-ctx.fillStyle="red";
-ctx.fillRect(
-boss.x-camX,
-boss.y-25,
-100,
-10
-);
-
-ctx.fillStyle="lime";
-ctx.fillRect(
-boss.x-camX,
-boss.y-25,
-boss.hp*10,
-10
-);
-    
-}
-
-// =======================
-// SPECIAL BACKGROUNDS
-// =======================
-
-function drawStageEffects(){
-
-if(gameLevel===2){
-
-ctx.fillStyle="rgba(255,120,0,0.15)";
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
-);
-
-}
-
-if(gameLevel===3){
-
-ctx.fillStyle="rgba(0,255,120,0.12)";
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
-);
-
-}
-
-if(gameLevel===4){
-
-ctx.fillStyle="rgba(180,220,255,0.18)";
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
-);
-
-}
-
-if(gameLevel===5){
-
-ctx.fillStyle="rgba(60,60,60,0.25)";
-ctx.fillRect(
-0,
-0,
-canvas.width,
-canvas.height
+unlockAchievement(
+"Supply Hunter"
 );
 
 }
 
 }
 
-// =======================
-// CAMERA
-// =======================
-
-function updateCamera(){
-
-camX=
-player.x-
-canvas.width*0.35;
-
-if(camX<0){
-camX=0;
 }
 
-}
+// ============================
+// PATCH LOOP
+// ============================
 
-// =======================
-// FALL DAMAGE
-// =======================
+const loopPart5=gameLoop;
 
-function checkDeath(){
+gameLoop=function(){
 
-if(
-player.y>
-canvas.height+500
-){
-
-lives--;
-
-if(lives<=0){
-
-alert(
-"💀 GAME OVER"
-);
-
-location.reload();
-
-}
-
-resetPlayer();
-
-}
-
-}
-
-// =======================
-// MASTER UPDATE
-// =======================
-
-function updateGame(){
+if(gameStarted){
 
 updatePlayer();
 
-updateCoins();
+wallCollision();
 
-updateHearts();
+updateBullets();
 
 updateEnemies();
 
-updateBoss();
-
 updateParticles();
 
-updateCamera();
+updateCoins();
 
-checkFinish();
+updateExplosions();
 
-checkDeath();
+collectCoins();
 
-}
+collectSupplyDrops();
 
-// =======================
-// MASTER RENDER
-// =======================
+bulletCollision();
 
-function renderGame(){
+updateRecoil();
 
-render();
-
-drawStageEffects();
-
-drawBoss();
+bossCheck();
 
 }
 
-// =======================
-// GAME LOOP
-// =======================
+drawFloor();
 
-function loop(){
+drawWalls();
 
-updateGame();
+drawCoins();
 
-renderGame();
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
 
 requestAnimationFrame(
-loop
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 6
+// DASH + SKILLS + ELITES
+// ============================
+
+// ============================
+// DASH
+// ============================
+
+let dashReady=true;
+
+function dash(){
+
+if(!dashReady) return;
+
+dashReady=false;
+
+player.x+=Math.cos(player.angle)*200;
+player.y+=Math.sin(player.angle)*200;
+
+setTimeout(()=>{
+
+dashReady=true;
+
+},3000);
+
+}
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key==="Shift"){
+
+dash();
+
+}
+
+}
+);
+
+// ============================
+// SPRINT
+// ============================
+
+let sprintMultiplier=1;
+
+function updateSprint(){
+
+if(keys["Shift"]){
+
+sprintMultiplier=2;
+
+}
+else{
+
+sprintMultiplier=1;
+
+}
+
+player.speed=
+6*sprintMultiplier;
+
+}
+
+// ============================
+// SHIELD
+// ============================
+
+let shield=100;
+let shieldMax=100;
+
+const shieldHud=
+document.createElement("div");
+
+shieldHud.style.position="fixed";
+shieldHud.style.top="250px";
+shieldHud.style.left="15px";
+shieldHud.style.color="cyan";
+shieldHud.style.zIndex="999";
+
+document.body.appendChild(
+shieldHud
+);
+
+function updateShieldHUD(){
+
+shieldHud.innerHTML=
+`
+Shield: ${Math.floor(shield)}
+`;
+
+}
+
+function damagePlayer(amount){
+
+if(shield>0){
+
+shield-=amount;
+
+if(shield<0){
+
+amount=Math.abs(shield);
+
+shield=0;
+
+player.hp-=amount;
+
+}
+
+}
+else{
+
+player.hp-=amount;
+
+}
+
+}
+
+// ============================
+// ELITE ENEMIES
+// ============================
+
+function spawnEliteEnemy(){
+
+enemies.push({
+
+type:"Elite",
+
+elite:true,
+
+hp:500,
+
+maxHp:500,
+
+speed:2,
+
+size:35,
+
+reward:150,
+
+x:
+player.x+
+(Math.random()-0.5)*1500,
+
+y:
+player.y+
+(Math.random()-0.5)*1500
+
+});
+
+}
+
+setInterval(()=>{
+
+if(
+gameStarted &&
+wave>3
+){
+
+spawnEliteEnemy();
+
+}
+
+},25000);
+
+// ============================
+// BOSS ABILITIES
+// ============================
+
+function updateBossAbilities(){
+
+for(const e of enemies){
+
+if(!e.boss) continue;
+
+if(Math.random()<0.005){
+
+damagePlayer(10);
+
+}
+
+}
+
+}
+
+// ============================
+// INVENTORY
+// ============================
+
+const inventory=[];
+
+function addItem(item){
+
+inventory.push(item);
+
+}
+
+// ============================
+// LOOT RARITY
+// ============================
+
+const rarities=[
+
+"Common",
+"Rare",
+"Epic",
+"Legendary"
+
+];
+
+function randomRarity(){
+
+const roll=Math.random();
+
+if(roll<0.55)
+return "Common";
+
+if(roll<0.80)
+return "Rare";
+
+if(roll<0.95)
+return "Epic";
+
+return "Legendary";
+
+}
+
+// ============================
+// MGOT CRATES
+// ============================
+
+function openCrate(){
+
+const rarity=
+randomRarity();
+
+const reward={
+
+rarity,
+
+coins:
+Math.floor(
+Math.random()*500
+)+100
+
+};
+
+coins+=reward.coins;
+
+addItem(reward);
+
+showAchievement(
+rarity+
+" Loot Found"
 );
 
 }
 
-loop();
+document.addEventListener(
+"keydown",
+e=>{
 
+if(
+e.key.toLowerCase()==="c"
+){
+
+openCrate();
+
+}
+
+}
+);
+
+// ============================
+// SKILL TREE
+// ============================
+
+const skills={
+
+damage:false,
+
+tank:false,
+
+speed:false,
+
+luck:false
+
+};
+
+function unlockSkill(name){
+
+if(skills[name]) return;
+
+if(level<5) return;
+
+skills[name]=true;
+
+switch(name){
+
+case "damage":
+weapon.damage+=20;
+break;
+
+case "tank":
+player.hp+=100;
+break;
+
+case "speed":
+player.speed+=2;
+break;
+
+case "luck":
+coins+=500;
+break;
+
+}
+
+}
+
+// ============================
+// SKILL MENU
+// ============================
+
+const skillMenu=
+document.createElement("div");
+
+skillMenu.style.position="fixed";
+skillMenu.style.left="50%";
+skillMenu.style.top="50%";
+skillMenu.style.transform=
+"translate(-50%,-50%)";
+
+skillMenu.style.background=
+"rgba(0,0,0,0.9)";
+
+skillMenu.style.padding="20px";
+
+skillMenu.style.color="white";
+
+skillMenu.style.display="none";
+
+skillMenu.style.zIndex="9999";
+
+document.body.appendChild(
+skillMenu
+);
+
+function updateSkillMenu(){
+
+skillMenu.innerHTML=`
+
+<h2>Skill Tree</h2>
+
+<button onclick="unlockSkill('damage')">
+Damage Skill
+</button>
+
+<br><br>
+
+<button onclick="unlockSkill('tank')">
+Tank Skill
+</button>
+
+<br><br>
+
+<button onclick="unlockSkill('speed')">
+Speed Skill
+</button>
+
+<br><br>
+
+<button onclick="unlockSkill('luck')">
+Luck Skill
+</button>
+
+`;
+
+}
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key.toLowerCase()==="k"){
+
+skillMenu.style.display=
+skillMenu.style.display==="none"
+?
+"block"
+:
+"none";
+
+updateSkillMenu();
+
+}
+
+}
+);
+
+// ============================
+// BATTLE PASS
+// ============================
+
+let battlePassXP=0;
+let battlePassLevel=1;
+
+function addBattlePassXP(v){
+
+battlePassXP+=v;
+
+if(
+battlePassXP>=
+battlePassLevel*100
+){
+
+battlePassLevel++;
+
+coins+=250;
+
+showAchievement(
+"Battle Pass Level "+
+battlePassLevel
+);
+
+}
+
+}
+
+// ============================
+// INVENTORY HUD
+// ============================
+
+const inventoryHud=
+document.createElement("div");
+
+inventoryHud.style.position=
+"fixed";
+
+inventoryHud.style.right="20px";
+
+inventoryHud.style.bottom="20px";
+
+inventoryHud.style.color="white";
+
+inventoryHud.style.zIndex="999";
+
+document.body.appendChild(
+inventoryHud
+);
+
+function updateInventoryHUD(){
+
+inventoryHud.innerHTML=
+
+`
+Items: ${inventory.length}
+<br>
+BP Level: ${battlePassLevel}
+`;
+
+}
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart6=
+killEnemy;
+
+killEnemy=function(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+addBattlePassXP(
+e.reward
+);
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(Math.random()<0.15){
+
+openCrate();
+
+}
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart6=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+}
+
+drawFloor();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 7
+// LEADERBOARD + CHAT + BOTS
+// ============================
+
+// ============================
+// PLAYER NAME
+// ============================
+
+let playerName =
+localStorage.getItem("mgot_name")
+||
+prompt("Enter player name")
+||
+"Player";
+
+localStorage.setItem(
+"mgot_name",
+playerName
+);
+
+// ============================
+// BOT PLAYERS
+// ============================
+
+const botPlayers=[];
+
+function spawnBot(){
+
+botPlayers.push({
+
+name:
+"BOT_"+Math.floor(
+Math.random()*9999
+),
+
+x:
+player.x+
+(Math.random()-0.5)*1000,
+
+y:
+player.y+
+(Math.random()-0.5)*1000,
+
+hp:100,
+
+score:0,
+
+angle:0
+
+});
+
+}
+
+for(let i=0;i<10;i++){
+
+spawnBot();
+
+}
+
+// ============================
+// UPDATE BOTS
+// ============================
+
+function updateBots(){
+
+for(const bot of botPlayers){
+
+bot.angle+=
+(Math.random()-0.5)*0.1;
+
+bot.x+=
+Math.cos(bot.angle)*2;
+
+bot.y+=
+Math.sin(bot.angle)*2;
+
+}
+
+}
+
+// ============================
+// DRAW BOTS
+// ============================
+
+function drawBots(){
+
+for(const bot of botPlayers){
+
+const sx=
+canvas.width/2+
+(bot.x-player.x);
+
+const sy=
+canvas.height/2+
+(bot.y-player.y);
+
+ctx.fillStyle="#00aaff";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+15,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="white";
+ctx.font="12px Arial";
+
+ctx.fillText(
+bot.name,
+sx-25,
+sy-20
+);
+
+}
+
+}
+
+// ============================
+// KILL FEED
+// ============================
+
+const killFeed=[];
+
+function addKillFeed(text){
+
+killFeed.unshift(text);
+
+if(killFeed.length>6){
+
+killFeed.pop();
+
+}
+
+}
+
+const killFeedHud=
+document.createElement("div");
+
+killFeedHud.style.position=
+"fixed";
+
+killFeedHud.style.right="20px";
+
+killFeedHud.style.top="250px";
+
+killFeedHud.style.color="white";
+
+killFeedHud.style.zIndex="999";
+
+document.body.appendChild(
+killFeedHud
+);
+
+function updateKillFeed(){
+
+killFeedHud.innerHTML=
+killFeed.join("<br>");
+
+}
+
+// ============================
+// CHAT
+// ============================
+
+const chatBox=
+document.createElement("div");
+
+chatBox.style.position="fixed";
+chatBox.style.left="20px";
+chatBox.style.bottom="80px";
+chatBox.style.width="300px";
+chatBox.style.height="150px";
+chatBox.style.overflow="hidden";
+chatBox.style.background=
+"rgba(0,0,0,0.5)";
+chatBox.style.color="white";
+chatBox.style.padding="10px";
+chatBox.style.zIndex="999";
+
+document.body.appendChild(
+chatBox
+);
+
+const chatMessages=[];
+
+function addChat(msg){
+
+chatMessages.push(msg);
+
+if(chatMessages.length>8){
+
+chatMessages.shift();
+
+}
+
+chatBox.innerHTML=
+chatMessages.join("<br>");
+
+}
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key==="Enter"){
+
+const txt=
+prompt("Chat:");
+
+if(txt){
+
+addChat(
+playerName+
+": "+
+txt
+);
+
+}
+
+}
+
+}
+);
+
+// ============================
+// LEADERBOARD
+// ============================
+
+const leaderboard=
+document.createElement("div");
+
+leaderboard.style.position=
+"fixed";
+
+leaderboard.style.right="20px";
+
+leaderboard.style.top="20px";
+
+leaderboard.style.background=
+"rgba(0,0,0,0.6)";
+
+leaderboard.style.padding="10px";
+
+leaderboard.style.color="white";
+
+leaderboard.style.zIndex="999";
+
+document.body.appendChild(
+leaderboard
+);
+
+function updateLeaderboard(){
+
+const board=[];
+
+board.push({
+
+name:playerName,
+
+score:player.score
+
+});
+
+for(const bot of botPlayers){
+
+board.push({
+
+name:bot.name,
+
+score:bot.score
+
+});
+
+}
+
+board.sort(
+(a,b)=>
+b.score-a.score
+);
+
+let html=
+"<b>Leaderboard</b><br>";
+
+for(
+let i=0;
+i<
+Math.min(
+10,
+board.length
+);
+i++
+){
+
+html+=
+
+(i+1)+
+". "+
+board[i].name+
+" - "+
+board[i].score+
+"<br>";
+
+}
+
+leaderboard.innerHTML=
+html;
+
+}
+
+// ============================
+// BOT COMBAT
+// ============================
+
+setInterval(()=>{
+
+if(!gameStarted) return;
+
+if(botPlayers.length===0)
+return;
+
+const bot=
+botPlayers[
+Math.floor(
+Math.random()*
+botPlayers.length
+)
+];
+
+bot.score++;
+
+},3000);
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart7=
+killEnemy;
+
+killEnemy=function(index,e){
+
+addKillFeed(
+playerName+
+" eliminated "+
+e.type
+);
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+addBattlePassXP(
+e.reward
+);
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart7=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+}
+
+drawFloor();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawBots();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 8
+// QUESTS + PRESTIGE + SETTINGS
+// ============================
+
+// ============================
+// DAILY QUESTS
+// ============================
+
+const dailyQuests=[
+
+{
+name:"Kill 25 Enemies",
+goal:25,
+progress:0,
+reward:500,
+completed:false
+},
+
+{
+name:"Collect 50 Coins",
+goal:50,
+progress:0,
+reward:300,
+completed:false
+},
+
+{
+name:"Reach Wave 5",
+goal:5,
+progress:0,
+reward:1000,
+completed:false
+}
+
+];
+
+// ============================
+// QUEST HUD
+// ============================
+
+const questHud=
+document.createElement("div");
+
+questHud.style.position="fixed";
+questHud.style.left="20px";
+questHud.style.top="350px";
+questHud.style.color="white";
+questHud.style.zIndex="999";
+
+document.body.appendChild(
+questHud
+);
+
+function updateQuestHUD(){
+
+let html="<b>Daily Quests</b><br>";
+
+for(const q of dailyQuests){
+
+html+=
+
+q.name+
+" ("+
+q.progress+
+"/"+
+q.goal+
+")<br>";
+
+}
+
+questHud.innerHTML=html;
+
+}
+
+// ============================
+// QUEST CHECK
+// ============================
+
+function updateQuestProgress(){
+
+dailyQuests[2].progress=wave;
+
+for(const q of dailyQuests){
+
+if(
+!q.completed &&
+q.progress>=q.goal
+){
+
+q.completed=true;
+
+coins+=q.reward;
+
+showAchievement(
+"Quest Completed"
+);
+
+}
+
+}
+
+}
+
+// ============================
+// PRESTIGE
+// ============================
+
+let prestige=0;
+
+function prestigePlayer(){
+
+if(level<25) return;
+
+prestige++;
+
+level=1;
+
+xp=0;
+
+coins+=5000;
+
+showAchievement(
+"Prestige "+
+prestige
+);
+
+}
+
+// ============================
+// PRESTIGE BUTTON
+// ============================
+
+const prestigeBtn=
+document.createElement("button");
+
+prestigeBtn.innerText=
+"PRESTIGE";
+
+prestigeBtn.style.position=
+"fixed";
+
+prestigeBtn.style.bottom=
+"20px";
+
+prestigeBtn.style.right=
+"250px";
+
+prestigeBtn.style.zIndex=
+"999";
+
+prestigeBtn.onclick=
+prestigePlayer;
+
+document.body.appendChild(
+prestigeBtn
+);
+
+// ============================
+// WEAPON SKINS
+// ============================
+
+const weaponSkins=[
+
+"Default",
+"Gold",
+"Diamond",
+"MGOT Neon"
+
+];
+
+let activeSkin=
+"Default";
+
+function setSkin(name){
+
+activeSkin=name;
+
+showAchievement(
+"Skin Equipped: "+
+name
+);
+
+}
+
+// ============================
+// SKIN MENU
+// ============================
+
+const skinMenu=
+document.createElement("div");
+
+skinMenu.style.position=
+"fixed";
+
+skinMenu.style.right=
+"20px";
+
+skinMenu.style.bottom=
+"120px";
+
+skinMenu.style.background=
+"rgba(0,0,0,0.7)";
+
+skinMenu.style.color=
+"white";
+
+skinMenu.style.padding=
+"10px";
+
+skinMenu.style.zIndex=
+"999";
+
+document.body.appendChild(
+skinMenu
+);
+
+function updateSkinMenu(){
+
+skinMenu.innerHTML=`
+
+<b>Weapon Skins</b>
+<br><br>
+
+<button onclick="setSkin('Default')">
+Default
+</button>
+
+<br><br>
+
+<button onclick="setSkin('Gold')">
+Gold
+</button>
+
+<br><br>
+
+<button onclick="setSkin('Diamond')">
+Diamond
+</button>
+
+<br><br>
+
+<button onclick="setSkin('MGOT Neon')">
+MGOT Neon
+</button>
+
+`;
+
+}
+
+updateSkinMenu();
+
+// ============================
+// SETTINGS
+// ============================
+
+let mouseSensitivity=1;
+let graphicsQuality="High";
+
+const settingsMenu=
+document.createElement("div");
+
+settingsMenu.style.position=
+"fixed";
+
+settingsMenu.style.left=
+"50%";
+
+settingsMenu.style.top=
+"50%";
+
+settingsMenu.style.transform=
+"translate(-50%,-50%)";
+
+settingsMenu.style.background=
+"rgba(0,0,0,0.9)";
+
+settingsMenu.style.padding=
+"20px";
+
+settingsMenu.style.color=
+"white";
+
+settingsMenu.style.display=
+"none";
+
+settingsMenu.style.zIndex=
+"99999";
+
+document.body.appendChild(
+settingsMenu
+);
+
+function updateSettings(){
+
+settingsMenu.innerHTML=`
+
+<h2>Settings</h2>
+
+Mouse Sensitivity:
+${mouseSensitivity}
+
+<br><br>
+
+<button onclick="
+mouseSensitivity+=0.1
+">
++
+</button>
+
+<button onclick="
+mouseSensitivity=Math.max(
+0.1,
+mouseSensitivity-0.1
+)
+">
+-
+</button>
+
+<br><br>
+
+Graphics:
+${graphicsQuality}
+
+`;
+
+}
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key==="Escape"){
+
+settingsMenu.style.display=
+
+settingsMenu.style.display==="none"
+
+?
+
+"block"
+
+:
+
+"none";
+
+updateSettings();
+
+}
+
+}
+);
+
+// ============================
+// CLANS
+// ============================
+
+let clanName=null;
+
+function createClan(){
+
+const name=
+prompt("Clan Name");
+
+if(!name) return;
+
+clanName=name;
+
+showAchievement(
+"Clan Created"
+);
+
+}
+
+const clanBtn=
+document.createElement("button");
+
+clanBtn.innerText=
+"Create Clan";
+
+clanBtn.style.position=
+"fixed";
+
+clanBtn.style.bottom=
+"60px";
+
+clanBtn.style.right=
+"250px";
+
+clanBtn.style.zIndex=
+"999";
+
+clanBtn.onclick=
+createClan;
+
+document.body.appendChild(
+clanBtn
+);
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart8=
+killEnemy;
+
+killEnemy=function(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+dailyQuests[0].progress++;
+
+dailyQuests[1].progress+=
+Math.floor(e.reward/10);
+
+updateQuestProgress();
+
+addBattlePassXP(
+e.reward
+);
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart8=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+}
+
+drawFloor();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawBots();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 9
+// PETS + CRAFTING + MUSIC
+// ============================
+
+// ============================
+// MUSIC SYSTEM
+// ============================
+
+let musicEnabled=true;
+let soundEnabled=true;
+
+const audioStatus=document.createElement("div");
+
+audioStatus.style.position="fixed";
+audioStatus.style.top="520px";
+audioStatus.style.left="20px";
+audioStatus.style.color="white";
+audioStatus.style.zIndex="999";
+
+document.body.appendChild(audioStatus);
+
+function updateAudioHUD(){
+
+audioStatus.innerHTML=`
+
+Music: ${musicEnabled ? "ON" : "OFF"}
+<br>
+Sound: ${soundEnabled ? "ON" : "OFF"}
+
+`;
+
+}
+
+document.addEventListener("keydown",e=>{
+
+if(e.key.toLowerCase()==="m"){
+
+musicEnabled=!musicEnabled;
+
+}
+
+if(e.key.toLowerCase()==="n"){
+
+soundEnabled=!soundEnabled;
+
+}
+
+});
+
+// ============================
+// PET SYSTEM
+// ============================
+
+const pets=[];
+
+function unlockPet(name){
+
+pets.push({
+
+name,
+
+x:0,
+y:0
+
+});
+
+showAchievement(
+"Pet Unlocked: "+name
+);
+
+}
+
+unlockPet("MGOT Drone");
+
+function updatePets(){
+
+for(const pet of pets){
+
+pet.x=
+player.x+
+Math.cos(Date.now()/500)*40;
+
+pet.y=
+player.y+
+Math.sin(Date.now()/500)*40;
+
+}
+
+}
+
+function drawPets(){
+
+for(const pet of pets){
+
+const sx=
+canvas.width/2+
+(pet.x-player.x);
+
+const sy=
+canvas.height/2+
+(pet.y-player.y);
+
+ctx.fillStyle="#00ffff";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+10,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+}
+
+// ============================
+// PET BONUS
+// ============================
+
+function petAttack(){
+
+for(const pet of pets){
+
+for(const e of enemies){
+
+const dist=Math.hypot(
+
+pet.x-e.x,
+pet.y-e.y
+
+);
+
+if(dist<80){
+
+e.hp-=0.5;
+
+}
+
+}
+
+}
+
+}
+
+setInterval(
+petAttack,
+100
+);
+
+// ============================
+// CRAFTING
+// ============================
+
+const materials={
+
+metal:0,
+crystal:0,
+core:0
+
+};
+
+function addMaterial(type){
+
+materials[type]++;
+
+}
+
+function craftLegendaryBox(){
+
+if(
+materials.metal<10 ||
+materials.crystal<10 ||
+materials.core<5
+){
+
+return;
+
+}
+
+materials.metal-=10;
+materials.crystal-=10;
+materials.core-=5;
+
+openCrate();
+
+openCrate();
+
+openCrate();
+
+showAchievement(
+"Legendary Crate Crafted"
+);
+
+}
+
+// ============================
+// MATERIAL DROPS
+// ============================
+
+function randomMaterial(){
+
+const arr=[
+
+"metal",
+"crystal",
+"core"
+
+];
+
+return arr[
+Math.floor(
+Math.random()*arr.length
+)
+];
+
+}
+
+// ============================
+// MATERIAL HUD
+// ============================
+
+const materialHud=
+document.createElement("div");
+
+materialHud.style.position=
+"fixed";
+
+materialHud.style.left=
+"20px";
+
+materialHud.style.top=
+"580px";
+
+materialHud.style.color=
+"white";
+
+materialHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+materialHud
+);
+
+function updateMaterialHUD(){
+
+materialHud.innerHTML=
+
+`
+Metal: ${materials.metal}
+<br>
+Crystal: ${materials.crystal}
+<br>
+Core: ${materials.core}
+`;
+
+}
+
+// ============================
+// CRAFT BUTTON
+// ============================
+
+const craftBtn=
+document.createElement("button");
+
+craftBtn.innerText=
+"Craft Legendary";
+
+craftBtn.style.position=
+"fixed";
+
+craftBtn.style.bottom=
+"100px";
+
+craftBtn.style.left=
+"20px";
+
+craftBtn.style.zIndex=
+"999";
+
+craftBtn.onclick=
+craftLegendaryBox;
+
+document.body.appendChild(
+craftBtn
+);
+
+// ============================
+// MARKETPLACE
+// ============================
+
+const marketplace=[];
+
+function listItem(item){
+
+marketplace.push(item);
+
+}
+
+function buyMarketplaceItem(index){
+
+if(!marketplace[index]) return;
+
+if(coins<500) return;
+
+coins-=500;
+
+inventory.push(
+marketplace[index]
+);
+
+marketplace.splice(index,1);
+
+}
+
+// ============================
+// GUILD XP
+// ============================
+
+let guildXP=0;
+let guildLevel=1;
+
+function addGuildXP(v){
+
+guildXP+=v;
+
+if(
+guildXP>=guildLevel*1000
+){
+
+guildLevel++;
+
+showAchievement(
+"Guild Level "+
+guildLevel
+);
+
+}
+
+}
+
+// ============================
+// TOURNAMENT
+// ============================
+
+let tournamentPoints=0;
+
+function addTournamentPoints(v){
+
+tournamentPoints+=v;
+
+}
+
+const tournamentHud=
+document.createElement("div");
+
+tournamentHud.style.position=
+"fixed";
+
+tournamentHud.style.right=
+"20px";
+
+tournamentHud.style.bottom=
+"20px";
+
+tournamentHud.style.color=
+"gold";
+
+tournamentHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+tournamentHud
+);
+
+function updateTournamentHUD(){
+
+tournamentHud.innerHTML=
+
+`
+Tournament:
+${tournamentPoints}
+`;
+
+}
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart9=
+killEnemy;
+
+killEnemy=function(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+addBattlePassXP(
+e.reward
+);
+
+addGuildXP(
+e.reward
+);
+
+addTournamentPoints(
+1
+);
+
+addMaterial(
+randomMaterial()
+);
+
+dailyQuests[0].progress++;
+
+dailyQuests[1].progress+=
+Math.floor(
+e.reward/10
+);
+
+updateQuestProgress();
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart9=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+}
+
+drawFloor();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 10
+// BATTLE ROYALE + STORM
+// ============================
+
+// ============================
+// BATTLE ROYALE MODE
+// ============================
+
+let battleRoyale=false;
+
+function enableBattleRoyale(){
+
+battleRoyale=true;
+
+showAchievement(
+"Battle Royale Started"
+);
+
+}
+
+const royaleBtn=
+document.createElement("button");
+
+royaleBtn.innerText=
+"Battle Royale";
+
+royaleBtn.style.position=
+"fixed";
+
+royaleBtn.style.top=
+"20px";
+
+royaleBtn.style.left=
+"250px";
+
+royaleBtn.style.zIndex=
+"999";
+
+royaleBtn.onclick=
+enableBattleRoyale;
+
+document.body.appendChild(
+royaleBtn
+);
+
+// ============================
+// STORM SYSTEM
+// ============================
+
+let stormRadius=3000;
+
+function updateStorm(){
+
+if(!battleRoyale) return;
+
+stormRadius-=0.05;
+
+const dist=
+Math.hypot(
+player.x,
+player.y
+);
+
+if(dist>stormRadius){
+
+damagePlayer(0.5);
+
+}
+
+}
+
+function drawStorm(){
+
+if(!battleRoyale) return;
+
+ctx.beginPath();
+
+ctx.arc(
+canvas.width/2,
+canvas.height/2,
+stormRadius/10,
+0,
+Math.PI*2
+);
+
+ctx.strokeStyle=
+"rgba(100,0,255,0.5)";
+
+ctx.lineWidth=10;
+
+ctx.stroke();
+
+}
+
+// ============================
+// LEGENDARY WEAPONS
+// ============================
+
+const legendaryWeapons=[
+
+{
+name:"MGOT Destroyer",
+damage:500
+},
+
+{
+name:"MGOT Plasma",
+damage:350
+},
+
+{
+name:"MGOT Dragon",
+damage:700
+}
+
+];
+
+function unlockLegendaryWeapon(){
+
+const weaponData=
+
+legendaryWeapons[
+Math.floor(
+Math.random()*
+legendaryWeapons.length
+)
+];
+
+inventory.push(
+weaponData
+);
+
+showAchievement(
+weaponData.name
+);
+
+}
+
+// ============================
+// RAID BOSSES
+// ============================
+
+const raidBosses=[];
+
+function spawnRaidBoss(){
+
+raidBosses.push({
+
+name:"MGOT TITAN",
+
+hp:10000,
+
+maxHp:10000,
+
+size:120,
+
+reward:5000,
+
+x:
+player.x+2000,
+
+y:
+player.y+2000
+
+});
+
+showAchievement(
+"Raid Boss Spawned"
+);
+
+}
+
+function updateRaidBosses(){
+
+for(const boss of raidBosses){
+
+const dx=
+player.x-boss.x;
+
+const dy=
+player.y-boss.y;
+
+const dist=
+Math.hypot(dx,dy);
+
+if(dist>0){
+
+boss.x+=
+(dx/dist)*0.5;
+
+boss.y+=
+(dy/dist)*0.5;
+
+}
+
+if(dist<150){
+
+damagePlayer(2);
+
+}
+
+}
+
+}
+
+function drawRaidBosses(){
+
+for(const boss of raidBosses){
+
+const sx=
+canvas.width/2+
+(boss.x-player.x);
+
+const sy=
+canvas.height/2+
+(boss.y-player.y);
+
+ctx.fillStyle=
+"purple";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+boss.size,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle=
+"white";
+
+ctx.fillText(
+boss.name,
+sx-40,
+sy-140
+);
+
+}
+
+}
+
+// ============================
+// RAID BUTTON
+// ============================
+
+const raidBtn=
+document.createElement("button");
+
+raidBtn.innerText=
+"Spawn Raid";
+
+raidBtn.style.position=
+"fixed";
+
+raidBtn.style.top=
+"60px";
+
+raidBtn.style.left=
+"250px";
+
+raidBtn.style.zIndex=
+"999";
+
+raidBtn.onclick=
+spawnRaidBoss;
+
+document.body.appendChild(
+raidBtn
+);
+
+// ============================
+// ACHIEVEMENT PANEL
+// ============================
+
+const achievementPanel=
+document.createElement("div");
+
+achievementPanel.style.position=
+"fixed";
+
+achievementPanel.style.right=
+"20px";
+
+achievementPanel.style.top=
+"420px";
+
+achievementPanel.style.background=
+"rgba(0,0,0,0.6)";
+
+achievementPanel.style.color=
+"white";
+
+achievementPanel.style.padding=
+"10px";
+
+achievementPanel.style.zIndex=
+"999";
+
+document.body.appendChild(
+achievementPanel
+);
+
+function updateAchievementPanel(){
+
+achievementPanel.innerHTML=
+
+"<b>Achievements</b><br>"+
+
+achievements.join("<br>");
+
+}
+
+// ============================
+// FINAL SAVE DATA
+// ============================
+
+function saveEverything(){
+
+localStorage.setItem(
+
+"mgotfps_full",
+
+JSON.stringify({
+
+coins,
+xp,
+level,
+prestige,
+battlePassLevel,
+guildLevel,
+tournamentPoints,
+materials,
+skills,
+inventory
+
+})
+
+);
+
+}
+
+setInterval(
+saveEverything,
+10000
+);
+
+// ============================
+// PERFORMANCE
+// ============================
+
+function cleanupBullets(){
+
+for(
+let i=
+bullets.length-1;
+i>=0;
+i--
+){
+
+if(
+Math.abs(
+bullets[i].x-player.x
+)>5000
+||
+
+Math.abs(
+bullets[i].y-player.y
+)>5000
+){
+
+bullets.splice(i,1);
+
+}
+
+}
+
+}
+
+function cleanupEnemies(){
+
+for(
+let i=
+enemies.length-1;
+i>=0;
+i--
+){
+
+if(
+Math.abs(
+enemies[i].x-player.x
+)>10000
+||
+
+Math.abs(
+enemies[i].y-player.y
+)>10000
+){
+
+enemies.splice(i,1);
+
+}
+
+}
+
+}
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart10=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateStorm();
+
+updateRaidBosses();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 11
+// CRITS + COMBOS + VIP
+// ============================
+
+// ============================
+// CRITICAL HITS
+// ============================
+
+let critChance=10;
+let critMultiplier=2;
+
+function rollCritical(){
+
+return Math.random()*100<
+critChance;
+
+}
+
+// ============================
+// DAMAGE NUMBERS
+// ============================
+
+const damageNumbers=[];
+
+function createDamageNumber(
+x,
+y,
+damage,
+critical=false
+){
+
+damageNumbers.push({
+
+x,
+y,
+
+damage,
+
+critical,
+
+life:60
+
+});
+
+}
+
+function updateDamageNumbers(){
+
+for(
+let i=
+damageNumbers.length-1;
+i>=0;
+i--
+){
+
+const d=
+damageNumbers[i];
+
+d.y-=1;
+
+d.life--;
+
+if(d.life<=0){
+
+damageNumbers.splice(i,1);
+
+}
+
+}
+
+}
+
+function drawDamageNumbers(){
+
+for(const d of damageNumbers){
+
+const sx=
+canvas.width/2+
+(d.x-player.x);
+
+const sy=
+canvas.height/2+
+(d.y-player.y);
+
+ctx.fillStyle=
+d.critical
+?
+"yellow"
+:
+"white";
+
+ctx.font=
+d.critical
+?
+"bold 24px Arial"
+:
+"18px Arial";
+
+ctx.fillText(
+Math.floor(d.damage),
+sx,
+sy
+);
+
+}
+
+}
+
+// ============================
+// COMBO SYSTEM
+// ============================
+
+let combo=0;
+let comboTimer=0;
+
+function addCombo(){
+
+combo++;
+
+comboTimer=300;
+
+if(combo===10){
+
+coins+=500;
+
+showAchievement(
+"10 Combo"
+);
+
+}
+
+}
+
+function updateCombo(){
+
+if(comboTimer>0){
+
+comboTimer--;
+
+}
+else{
+
+combo=0;
+
+}
+
+}
+
+// ============================
+// COMBO HUD
+// ============================
+
+const comboHud=
+document.createElement("div");
+
+comboHud.style.position=
+"fixed";
+
+comboHud.style.top=
+"650px";
+
+comboHud.style.left=
+"20px";
+
+comboHud.style.color=
+"orange";
+
+comboHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+comboHud
+);
+
+function updateComboHUD(){
+
+comboHud.innerHTML=
+
+`
+Combo: ${combo}
+`;
+
+}
+
+// ============================
+// ELEMENTAL WEAPONS
+// ============================
+
+let weaponElement=
+"none";
+
+const elements=[
+
+"fire",
+"ice",
+"poison",
+"lightning"
+
+];
+
+function randomElement(){
+
+weaponElement=
+
+elements[
+Math.floor(
+Math.random()*
+elements.length
+)
+];
+
+showAchievement(
+weaponElement+
+" Weapon"
+);
+
+}
+
+// ============================
+// ELEMENT DAMAGE
+// ============================
+
+function applyElementEffect(enemy){
+
+switch(weaponElement){
+
+case "fire":
+enemy.hp-=10;
+break;
+
+case "ice":
+enemy.speed*=0.95;
+break;
+
+case "poison":
+enemy.hp-=5;
+break;
+
+case "lightning":
+enemy.hp-=20;
+break;
+
+}
+
+}
+
+// ============================
+// AUTO HEAL
+// ============================
+
+setInterval(()=>{
+
+if(player.hp<100){
+
+player.hp+=1;
+
+}
+
+if(shield<shieldMax){
+
+shield+=1;
+
+}
+
+},1000);
+
+// ============================
+// VIP SYSTEM
+// ============================
+
+let vip=false;
+
+function activateVIP(){
+
+vip=true;
+
+coins+=5000;
+
+critChance+=10;
+
+showAchievement(
+"VIP Activated"
+);
+
+}
+
+const vipBtn=
+document.createElement("button");
+
+vipBtn.innerText=
+"Activate VIP";
+
+vipBtn.style.position=
+"fixed";
+
+vipBtn.style.top=
+"100px";
+
+vipBtn.style.left=
+"250px";
+
+vipBtn.style.zIndex=
+"999";
+
+vipBtn.onclick=
+activateVIP;
+
+document.body.appendChild(
+vipBtn
+);
+
+// ============================
+// DAILY LOGIN
+// ============================
+
+function dailyLoginReward(){
+
+const last=
+localStorage.getItem(
+"daily_login"
+);
+
+const today=
+new Date()
+.toDateString();
+
+if(last!==today){
+
+coins+=1000;
+
+localStorage.setItem(
+"daily_login",
+today
+);
+
+showAchievement(
+"Daily Reward"
+);
+
+}
+
+}
+
+dailyLoginReward();
+
+// ============================
+// LUCKY WHEEL
+// ============================
+
+function spinWheel(){
+
+const reward=
+
+Math.floor(
+Math.random()*5000
+)+100;
+
+coins+=reward;
+
+showAchievement(
+"Wheel +"+
+reward
+);
+
+}
+
+const wheelBtn=
+document.createElement("button");
+
+wheelBtn.innerText=
+"Lucky Wheel";
+
+wheelBtn.style.position=
+"fixed";
+
+wheelBtn.style.top=
+"140px";
+
+wheelBtn.style.left=
+"250px";
+
+wheelBtn.style.zIndex=
+"999";
+
+wheelBtn.onclick=
+spinWheel;
+
+document.body.appendChild(
+wheelBtn
+);
+
+// ============================
+// PATCH COLLISION
+// ============================
+
+const oldCollision11=
+bulletCollision;
+
+bulletCollision=function(){
+
+for(
+let i=
+bullets.length-1;
+i>=0;
+i--
+){
+
+const b=
+bullets[i];
+
+for(
+let j=
+enemies.length-1;
+j>=0;
+j--
+){
+
+const e=
+enemies[j];
+
+const dist=
+Math.hypot(
+b.x-e.x,
+b.y-e.y
+);
+
+if(dist<e.size){
+
+let dmg=
+weapon.damage;
+
+let critical=false;
+
+if(
+rollCritical()
+){
+
+dmg*=
+critMultiplier;
+
+critical=true;
+
+}
+
+applyElementEffect(e);
+
+e.hp-=dmg;
+
+createDamageNumber(
+e.x,
+e.y,
+dmg,
+critical
+);
+
+bullets.splice(i,1);
+
+if(e.hp<=0){
+
+addCombo();
+
+killEnemy(
+j,
+e
+);
+
+}
+
+break;
+
+}
+
+}
+
+}
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart11=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateStorm();
+
+updateRaidBosses();
+
+updateDamageNumbers();
+
+updateCombo();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawDamageNumbers();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateComboHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 12
+// SEASONS + RANKS + EVENTS
+// ============================
+
+// ============================
+// ENERGY SYSTEM
+// ============================
+
+let energy=100;
+let maxEnergy=100;
+
+setInterval(()=>{
+
+if(energy<maxEnergy){
+
+energy++;
+
+}
+
+},3000);
+
+const energyHud=
+document.createElement("div");
+
+energyHud.style.position="fixed";
+energyHud.style.left="20px";
+energyHud.style.top="720px";
+energyHud.style.color="#00ff88";
+energyHud.style.zIndex="999";
+
+document.body.appendChild(
+energyHud
+);
+
+function updateEnergyHUD(){
+
+energyHud.innerHTML=
+`
+Energy:
+${Math.floor(energy)}
+/
+${maxEnergy}
+`;
+
+}
+
+// ============================
+// RANKS
+// ============================
+
+const ranks=[
+
+"Bronze",
+"Silver",
+"Gold",
+"Platinum",
+"Diamond",
+"Master",
+"Grandmaster",
+"Legend"
+
+];
+
+let playerRank="Bronze";
+
+function updateRank(){
+
+if(level>=5)
+playerRank="Silver";
+
+if(level>=10)
+playerRank="Gold";
+
+if(level>=20)
+playerRank="Platinum";
+
+if(level>=30)
+playerRank="Diamond";
+
+if(level>=40)
+playerRank="Master";
+
+if(level>=50)
+playerRank="Grandmaster";
+
+if(level>=75)
+playerRank="Legend";
+
+}
+
+// ============================
+// TITLE SYSTEM
+// ============================
+
+let playerTitle=
+"Recruit";
+
+function updateTitle(){
+
+if(player.score>=50)
+playerTitle=
+"Hunter";
+
+if(player.score>=250)
+playerTitle=
+"Destroyer";
+
+if(player.score>=500)
+playerTitle=
+"Champion";
+
+if(player.score>=1000)
+playerTitle=
+"MGOT Legend";
+
+}
+
+// ============================
+// RANK HUD
+// ============================
+
+const rankHud=
+document.createElement("div");
+
+rankHud.style.position=
+"fixed";
+
+rankHud.style.left=
+"20px";
+
+rankHud.style.top=
+"780px";
+
+rankHud.style.color=
+"gold";
+
+rankHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+rankHud
+);
+
+function updateRankHUD(){
+
+rankHud.innerHTML=
+
+`
+Rank:
+${playerRank}
+<br>
+Title:
+${playerTitle}
+`;
+
+}
+
+// ============================
+// PET LEVELING
+// ============================
+
+let petXP=0;
+let petLevel=1;
+
+function addPetXP(v){
+
+petXP+=v;
+
+if(
+petXP>=petLevel*100
+){
+
+petLevel++;
+
+showAchievement(
+"Pet Level "+
+petLevel
+);
+
+}
+
+}
+
+const petHud=
+document.createElement("div");
+
+petHud.style.position=
+"fixed";
+
+petHud.style.left=
+"20px";
+
+petHud.style.top=
+"850px";
+
+petHud.style.color=
+"cyan";
+
+petHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+petHud
+);
+
+function updatePetHUD(){
+
+petHud.innerHTML=
+
+`
+Pet Level:
+${petLevel}
+`;
+
+}
+
+// ============================
+// BATTLE PASS MENU
+// ============================
+
+const bpMenu=
+document.createElement("div");
+
+bpMenu.style.position=
+"fixed";
+
+bpMenu.style.right=
+"250px";
+
+bpMenu.style.top=
+"20px";
+
+bpMenu.style.background=
+"rgba(0,0,0,0.7)";
+
+bpMenu.style.color=
+"white";
+
+bpMenu.style.padding=
+"10px";
+
+bpMenu.style.zIndex=
+"999";
+
+document.body.appendChild(
+bpMenu
+);
+
+function updateBattlePassMenu(){
+
+bpMenu.innerHTML=
+
+`
+Battle Pass
+<br>
+Level:
+${battlePassLevel}
+`;
+
+}
+
+// ============================
+// GUILD WAR
+// ============================
+
+let guildWarPoints=0;
+
+function addGuildWarPoint(){
+
+guildWarPoints++;
+
+}
+
+const guildHud=
+document.createElement("div");
+
+guildHud.style.position=
+"fixed";
+
+guildHud.style.right=
+"250px";
+
+guildHud.style.top=
+"120px";
+
+guildHud.style.color=
+"orange";
+
+guildHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+guildHud
+);
+
+function updateGuildHUD(){
+
+guildHud.innerHTML=
+
+`
+Guild War:
+${guildWarPoints}
+`;
+
+}
+
+// ============================
+// AUCTION HOUSE
+// ============================
+
+const auctionHouse=[];
+
+function createAuction(item){
+
+auctionHouse.push({
+
+item,
+
+price:1000
+
+});
+
+}
+
+function buyAuction(index){
+
+if(
+!auctionHouse[index]
+) return;
+
+if(coins<auctionHouse[index].price)
+return;
+
+coins-=
+auctionHouse[index].price;
+
+inventory.push(
+auctionHouse[index].item
+);
+
+auctionHouse.splice(
+index,
+1
+);
+
+}
+
+// ============================
+// PLAYER TRADING
+// ============================
+
+function tradeItem(item){
+
+showAchievement(
+"Trade Completed"
+);
+
+}
+
+// ============================
+// SEASON SYSTEM
+// ============================
+
+let season=1;
+
+function nextSeason(){
+
+season++;
+
+coins+=5000;
+
+showAchievement(
+"Season "+
+season
+);
+
+}
+
+setInterval(()=>{
+
+nextSeason();
+
+},600000);
+
+// ============================
+// WORLD BOSS EVENT
+// ============================
+
+const worldBoss={
+
+active:false,
+
+hp:50000,
+
+maxHp:50000
+
+};
+
+function startWorldBoss(){
+
+worldBoss.active=true;
+
+worldBoss.hp=
+worldBoss.maxHp;
+
+showAchievement(
+"World Boss Event"
+);
+
+}
+
+setInterval(()=>{
+
+if(!worldBoss.active){
+
+startWorldBoss();
+
+}
+
+},180000);
+
+function drawWorldBossHUD(){
+
+if(!worldBoss.active)
+return;
+
+ctx.fillStyle="black";
+
+ctx.fillRect(
+canvas.width/2-250,
+20,
+500,
+30
+);
+
+ctx.fillStyle="red";
+
+ctx.fillRect(
+canvas.width/2-250,
+20,
+500*
+(
+worldBoss.hp/
+worldBoss.maxHp
+),
+30
+);
+
+ctx.fillStyle="white";
+
+ctx.fillText(
+"World Boss",
+canvas.width/2-40,
+40
+);
+
+}
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart12=
+killEnemy;
+
+killEnemy=function(index,e){
+
+player.score++;
+
+coins+=e.reward;
+
+xp+=e.reward;
+
+addPetXP(
+e.reward
+);
+
+addGuildWarPoint();
+
+updateRank();
+
+updateTitle();
+
+addBattlePassXP(
+e.reward
+);
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart12=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateStorm();
+
+updateRaidBosses();
+
+updateDamageNumbers();
+
+updateCombo();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawDamageNumbers();
+
+drawWorldBossHUD();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateComboHUD();
+
+updateEnergyHUD();
+
+updateRankHUD();
+
+updatePetHUD();
+
+updateBattlePassMenu();
+
+updateGuildHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 13
+// CITY HUB + DUNGEONS
+// ============================
+
+// ============================
+// CITY HUB
+// ============================
+
+let currentZone="Wasteland";
+
+const zones=[
+
+"MGOT City",
+"Crypto Desert",
+"Moon Base",
+"Volcano Core",
+"Wasteland"
+
+];
+
+function travelTo(zone){
+
+currentZone=zone;
+
+player.x=0;
+player.y=0;
+
+showAchievement(
+"Travelled to "+zone
+);
+
+}
+
+// ============================
+// FAST TRAVEL MENU
+// ============================
+
+const travelMenu=
+document.createElement("div");
+
+travelMenu.style.position="fixed";
+travelMenu.style.right="20px";
+travelMenu.style.top="520px";
+travelMenu.style.background=
+"rgba(0,0,0,0.7)";
+travelMenu.style.color="white";
+travelMenu.style.padding="10px";
+travelMenu.style.zIndex="999";
+
+document.body.appendChild(
+travelMenu
+);
+
+function updateTravelMenu(){
+
+travelMenu.innerHTML=`
+
+<b>Fast Travel</b>
+
+<br><br>
+
+<button onclick="travelTo('MGOT City')">
+MGOT City
+</button>
+
+<br><br>
+
+<button onclick="travelTo('Crypto Desert')">
+Crypto Desert
+</button>
+
+<br><br>
+
+<button onclick="travelTo('Moon Base')">
+Moon Base
+</button>
+
+<br><br>
+
+<button onclick="travelTo('Volcano Core')">
+Volcano Core
+</button>
+
+`;
+
+}
+
+// ============================
+// NPC SYSTEM
+// ============================
+
+const npcs=[
+
+{
+name:"Trader Bob",
+type:"shop"
+},
+
+{
+name:"Quest Master",
+type:"quest"
+},
+
+{
+name:"Dungeon Keeper",
+type:"dungeon"
+}
+
+];
+
+// ============================
+// NPC HUD
+// ============================
+
+const npcHud=
+document.createElement("div");
+
+npcHud.style.position="fixed";
+npcHud.style.left="350px";
+npcHud.style.top="20px";
+npcHud.style.color="white";
+npcHud.style.zIndex="999";
+
+document.body.appendChild(
+npcHud
+);
+
+function updateNPCHud(){
+
+npcHud.innerHTML=
+
+`
+Zone:
+${currentZone}
+<br>
+NPCs:
+${npcs.length}
+`;
+
+}
+
+// ============================
+// QUEST GIVER
+// ============================
+
+const storyQuests=[];
+
+function addStoryQuest(){
+
+storyQuests.push({
+
+name:"Defeat 100 Enemies",
+
+goal:100,
+
+progress:0,
+
+reward:5000,
+
+done:false
+
+});
+
+}
+
+addStoryQuest();
+
+function updateStoryQuest(){
+
+for(const q of storyQuests){
+
+if(
+!q.done &&
+q.progress>=q.goal
+){
+
+q.done=true;
+
+coins+=q.reward;
+
+showAchievement(
+q.name
+);
+
+}
+
+}
+
+}
+
+// ============================
+// TALENT TREE
+// ============================
+
+const talents={
+
+berserker:0,
+
+guardian:0,
+
+sniper:0,
+
+engineer:0
+
+};
+
+function upgradeTalent(name){
+
+if(coins<1000)
+return;
+
+coins-=1000;
+
+talents[name]++;
+
+showAchievement(
+name+" Talent"
+);
+
+}
+
+// ============================
+// TALENT MENU
+// ============================
+
+const talentMenu=
+document.createElement("div");
+
+talentMenu.style.position=
+"fixed";
+
+talentMenu.style.left=
+"50%";
+
+talentMenu.style.top=
+"100px";
+
+talentMenu.style.background=
+"rgba(0,0,0,0.8)";
+
+talentMenu.style.color=
+"white";
+
+talentMenu.style.padding=
+"10px";
+
+talentMenu.style.zIndex=
+"999";
+
+document.body.appendChild(
+talentMenu
+);
+
+function updateTalentMenu(){
+
+talentMenu.innerHTML=`
+
+<b>Talent Tree</b>
+
+<br><br>
+
+Berserker:
+${talents.berserker}
+
+<br>
+
+Guardian:
+${talents.guardian}
+
+<br>
+
+Sniper:
+${talents.sniper}
+
+<br>
+
+Engineer:
+${talents.engineer}
+
+`;
+
+}
+
+// ============================
+// PRESTIGE SHOP
+// ============================
+
+const prestigeShop=[];
+
+function buyPrestigeItem(name){
+
+if(prestige<=0)
+return;
+
+prestige--;
+
+prestigeShop.push(name);
+
+showAchievement(
+"Prestige Item"
+);
+
+}
+
+// ============================
+// DUNGEON SYSTEM
+// ============================
+
+let dungeonActive=false;
+
+function startDungeon(){
+
+dungeonActive=true;
+
+showAchievement(
+"Dungeon Started"
+);
+
+for(let i=0;i<50;i++){
+
+spawnEnemy();
+
+}
+
+}
+
+function finishDungeon(){
+
+dungeonActive=false;
+
+coins+=10000;
+
+xp+=5000;
+
+showAchievement(
+"Dungeon Complete"
+);
+
+}
+
+// ============================
+// DUNGEON BUTTON
+// ============================
+
+const dungeonBtn=
+document.createElement("button");
+
+dungeonBtn.innerText=
+"Start Dungeon";
+
+dungeonBtn.style.position=
+"fixed";
+
+dungeonBtn.style.bottom=
+"150px";
+
+dungeonBtn.style.left=
+"20px";
+
+dungeonBtn.style.zIndex=
+"999";
+
+dungeonBtn.onclick=
+startDungeon;
+
+document.body.appendChild(
+dungeonBtn
+);
+
+// ============================
+// CLAN LEADERBOARD
+// ============================
+
+const clanLeaderboard=[];
+
+function updateClanLeaderboard(){
+
+if(!clanName)
+return;
+
+clanLeaderboard.push({
+
+name:clanName,
+
+score:player.score
+
+});
+
+}
+
+// ============================
+// GLOBAL CHAT
+// ============================
+
+const globalChat=[];
+
+function sendGlobalMessage(msg){
+
+globalChat.push(
+
+playerName+
+": "+
+msg
+
+);
+
+if(globalChat.length>20){
+
+globalChat.shift();
+
+}
+
+}
+
+document.addEventListener(
+"keydown",
+e=>{
+
+if(e.key==="F2"){
+
+const msg=
+prompt(
+"Global Chat"
+);
+
+if(msg){
+
+sendGlobalMessage(
+msg
+);
+
+}
+
+}
+
+}
+);
+
+// ============================
+// GLOBAL CHAT HUD
+// ============================
+
+const globalChatHud=
+document.createElement("div");
+
+globalChatHud.style.position=
+"fixed";
+
+globalChatHud.style.left=
+"20px";
+
+globalChatHud.style.bottom=
+"250px";
+
+globalChatHud.style.width=
+"350px";
+
+globalChatHud.style.height=
+"150px";
+
+globalChatHud.style.overflow=
+"hidden";
+
+globalChatHud.style.background=
+"rgba(0,0,0,0.5)";
+
+globalChatHud.style.color=
+"white";
+
+globalChatHud.style.padding=
+"10px";
+
+globalChatHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+globalChatHud
+);
+
+function updateGlobalChat(){
+
+globalChatHud.innerHTML=
+globalChat.join("<br>");
+
+}
+
+// ============================
+// ACHIEVEMENT PROGRESS
+// ============================
+
+const achievementStats={
+
+kills:0,
+
+coins:0,
+
+bosses:0,
+
+waves:0
+
+};
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart13=
+killEnemy;
+
+killEnemy=function(index,e){
+
+achievementStats.kills++;
+
+player.score++;
+
+coins+=e.reward;
+
+achievementStats.coins+=
+e.reward;
+
+xp+=e.reward;
+
+if(storyQuests[0]){
+
+storyQuests[0].progress++;
+
+updateStoryQuest();
+
+}
+
+addPetXP(
+e.reward
+);
+
+updateRank();
+
+updateTitle();
+
+addBattlePassXP(
+e.reward
+);
+
+enemiesKilledThisWave++;
+
+dropCoin(
+e.x,
+e.y,
+Math.floor(
+e.reward/2
+)
+);
+
+if(
+enemiesKilledThisWave
+>=
+enemiesNeededForWave
+){
+
+achievementStats.waves++;
+
+nextWave();
+
+}
+
+enemies.splice(
+index,
+1
+);
+
+checkLevelUp();
+
+createKillEffect();
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart13=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateStorm();
+
+updateRaidBosses();
+
+updateDamageNumbers();
+
+updateCombo();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawDamageNumbers();
+
+drawWorldBossHUD();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateComboHUD();
+
+updateEnergyHUD();
+
+updateRankHUD();
+
+updatePetHUD();
+
+updateBattlePassMenu();
+
+updateGuildHUD();
+
+updateNPCHud();
+
+updateTravelMenu();
+
+updateTalentMenu();
+
+updateGlobalChat();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 14
+// REBIRTH + ARTIFACTS
+// ============================
+
+// ============================
+// REBIRTH SYSTEM
+// ============================
+
+let rebirths=0;
+
+function rebirthPlayer(){
+
+if(level<100) return;
+
+rebirths++;
+
+level=1;
+xp=0;
+
+player.hp+=100;
+weapon.damage+=25;
+
+showAchievement(
+"Rebirth "+rebirths
+);
+
+}
+
+const rebirthBtn=
+document.createElement("button");
+
+rebirthBtn.innerText=
+"REBIRTH";
+
+rebirthBtn.style.position=
+"fixed";
+
+rebirthBtn.style.top=
+"180px";
+
+rebirthBtn.style.left=
+"250px";
+
+rebirthBtn.style.zIndex=
+"999";
+
+rebirthBtn.onclick=
+rebirthPlayer;
+
+document.body.appendChild(
+rebirthBtn
+);
+
+// ============================
+// DAILY STREAK
+// ============================
+
+let dailyStreak=1;
+
+function checkDailyStreak(){
+
+const today=
+new Date().toDateString();
+
+const last=
+localStorage.getItem(
+"mgot_streak_date"
+);
+
+if(last!==today){
+
+dailyStreak++;
+
+coins+=dailyStreak*250;
+
+localStorage.setItem(
+"mgot_streak_date",
+today
+);
+
+}
+
+}
+
+checkDailyStreak();
+
+// ============================
+// MOUNTS
+// ============================
+
+let activeMount=null;
+
+function equipMount(name){
+
+activeMount=name;
+
+player.speed+=2;
+
+showAchievement(
+"Mount: "+name
+);
+
+}
+
+const mounts=[
+
+"Cyber Wolf",
+"MGOT Bike",
+"Dragon Rider"
+
+];
+
+// ============================
+// LEGENDARY PETS
+// ============================
+
+const legendaryPets=[];
+
+function unlockLegendaryPet(){
+
+const petNames=[
+
+"Phoenix",
+"Titan Bot",
+"Void Dragon",
+"Crypto Tiger"
+
+];
+
+const pet=
+
+petNames[
+Math.floor(
+Math.random()*petNames.length
+)
+];
+
+legendaryPets.push(pet);
+
+showAchievement(
+"Legendary Pet: "+pet
+);
+
+}
+
+// ============================
+// ARTIFACT SYSTEM
+// ============================
+
+const artifacts=[];
+
+function obtainArtifact(){
+
+const artifactNames=[
+
+"Ancient Core",
+"Golden Relic",
+"Void Crystal",
+"MGOT Crown"
+
+];
+
+const item=
+
+artifactNames[
+Math.floor(
+Math.random()*artifactNames.length
+)
+];
+
+artifacts.push(item);
+
+showAchievement(
+"Artifact Found"
+);
+
+}
+
+// ============================
+// ARTIFACT BONUS
+// ============================
+
+function artifactBonuses(){
+
+weapon.damage+=
+artifacts.length*2;
+
+player.hp+=
+artifacts.length;
+
+}
+
+// ============================
+// WORLD EVENTS
+// ============================
+
+let activeEvent=null;
+
+function startWorldEvent(){
+
+const events=[
+
+"Double XP",
+
+"Double Coins",
+
+"Boss Rush",
+
+"Loot Frenzy"
+
+];
+
+activeEvent=
+
+events[
+Math.floor(
+Math.random()*events.length
+)
+];
+
+showAchievement(
+activeEvent
+);
+
+}
+
+setInterval(()=>{
+
+startWorldEvent();
+
+},300000);
+
+// ============================
+// EVENT HUD
+// ============================
+
+const eventHud=
+document.createElement("div");
+
+eventHud.style.position=
+"fixed";
+
+eventHud.style.top=
+"920px";
+
+eventHud.style.left=
+"20px";
+
+eventHud.style.color=
+"#00ffff";
+
+eventHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+eventHud
+);
+
+function updateEventHUD(){
+
+eventHud.innerHTML=
+
+`
+Event:
+${activeEvent || "None"}
+`;
+
+}
+
+// ============================
+// BOSS PHASES
+// ============================
+
+function updateBossPhases(){
+
+for(const e of enemies){
+
+if(!e.boss) continue;
+
+if(
+e.hp<
+e.maxHp*0.75
+){
+
+e.speed=1.0;
+
+}
+
+if(
+e.hp<
+e.maxHp*0.50
+){
+
+e.speed=1.5;
+
+}
+
+if(
+e.hp<
+e.maxHp*0.25
+){
+
+e.speed=2.5;
+
+}
+
+}
+
+}
+
+// ============================
+// ELITE DUNGEON KEYS
+// ============================
+
+let dungeonKeys=0;
+
+function obtainDungeonKey(){
+
+dungeonKeys++;
+
+showAchievement(
+"Dungeon Key"
+);
+
+}
+
+// ============================
+// LOOT FILTER
+// ============================
+
+let lootFilter="All";
+
+function setLootFilter(type){
+
+lootFilter=type;
+
+}
+
+// ============================
+// STATISTICS PANEL
+// ============================
+
+const statsPanel=
+document.createElement("div");
+
+statsPanel.style.position=
+"fixed";
+
+statsPanel.style.right=
+"20px";
+
+statsPanel.style.bottom=
+"180px";
+
+statsPanel.style.background=
+"rgba(0,0,0,0.7)";
+
+statsPanel.style.color=
+"white";
+
+statsPanel.style.padding=
+"10px";
+
+statsPanel.style.zIndex=
+"999";
+
+document.body.appendChild(
+statsPanel
+);
+
+function updateStatsPanel(){
+
+statsPanel.innerHTML=
+
+`
+Rebirths:
+${rebirths}
+
+<br>
+
+Artifacts:
+${artifacts.length}
+
+<br>
+
+Legendary Pets:
+${legendaryPets.length}
+
+<br>
+
+Dungeon Keys:
+${dungeonKeys}
+
+<br>
+
+Daily Streak:
+${dailyStreak}
+`;
+
+}
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart14=
+killEnemy;
+
+killEnemy=function(index,e){
+
+if(Math.random()<0.03){
+
+obtainArtifact();
+
+}
+
+if(Math.random()<0.02){
+
+unlockLegendaryPet();
+
+}
+
+if(Math.random()<0.05){
+
+obtainDungeonKey();
+
+}
+
+oldKillPart14(
+index,
+e
+);
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart14=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateStorm();
+
+updateRaidBosses();
+
+updateDamageNumbers();
+
+updateCombo();
+
+updateBossPhases();
+
+artifactBonuses();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawBots();
+
+drawPets();
+
+drawParticles();
+
+drawDamageNumbers();
+
+drawWorldBossHUD();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateComboHUD();
+
+updateEnergyHUD();
+
+updateRankHUD();
+
+updatePetHUD();
+
+updateBattlePassMenu();
+
+updateGuildHUD();
+
+updateNPCHud();
+
+updateTravelMenu();
+
+updateTalentMenu();
+
+updateGlobalChat();
+
+updateEventHUD();
+
+updateStatsPanel();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
+// ============================
+// MGOT FPS PART 15
+// ENDGAME EXPANSION
+// ============================
+
+// ============================
+// PVP ARENA
+// ============================
+
+let pvpArenaUnlocked=false;
+let pvpRating=1000;
+
+function unlockPvP(){
+
+pvpArenaUnlocked=true;
+
+showAchievement(
+"PvP Arena Unlocked"
+);
+
+}
+
+function winPvPMatch(){
+
+pvpRating+=25;
+
+coins+=1000;
+
+showAchievement(
+"PvP Victory"
+);
+
+}
+
+// ============================
+// RANKED SEASONS
+// ============================
+
+let rankedSeason=1;
+
+function nextRankedSeason(){
+
+rankedSeason++;
+
+pvpRating=1000;
+
+coins+=5000;
+
+showAchievement(
+"Ranked Season "+
+rankedSeason
+);
+
+}
+
+// ============================
+// GUILD CASTLE
+// ============================
+
+let guildCastleLevel=1;
+
+function upgradeGuildCastle(){
+
+if(coins<5000) return;
+
+coins-=5000;
+
+guildCastleLevel++;
+
+showAchievement(
+"Guild Castle Lv."+
+guildCastleLevel
+);
+
+}
+
+// ============================
+// COMPANION AI
+// ============================
+
+const companions=[];
+
+function summonCompanion(){
+
+companions.push({
+
+name:"MGOT Guardian",
+
+hp:500,
+
+x:player.x,
+
+y:player.y
+
+});
+
+}
+
+function updateCompanions(){
+
+for(const c of companions){
+
+c.x +=
+(player.x-c.x)*0.05;
+
+c.y +=
+(player.y-c.y)*0.05;
+
+}
+
+}
+
+function drawCompanions(){
+
+for(const c of companions){
+
+const sx=
+canvas.width/2+
+(c.x-player.x);
+
+const sy=
+canvas.height/2+
+(c.y-player.y);
+
+ctx.fillStyle="lime";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+12,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+}
+
+// ============================
+// MYTHIC BOSSES
+// ============================
+
+const mythicBosses=[];
+
+function spawnMythicBoss(){
+
+mythicBosses.push({
+
+name:"MGOT OMEGA",
+
+hp:100000,
+
+maxHp:100000,
+
+size:180,
+
+reward:25000,
+
+x:player.x+3000,
+
+y:player.y+3000
+
+});
+
+showAchievement(
+"Mythic Boss"
+);
+
+}
+
+function updateMythicBosses(){
+
+for(const boss of mythicBosses){
+
+const dx=
+player.x-boss.x;
+
+const dy=
+player.y-boss.y;
+
+const dist=
+Math.hypot(dx,dy);
+
+if(dist>0){
+
+boss.x+=
+(dx/dist)*0.3;
+
+boss.y+=
+(dy/dist)*0.3;
+
+}
+
+}
+
+}
+
+function drawMythicBosses(){
+
+for(const boss of mythicBosses){
+
+const sx=
+canvas.width/2+
+(boss.x-player.x);
+
+const sy=
+canvas.height/2+
+(boss.y-player.y);
+
+ctx.fillStyle="#ff00ff";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+boss.size,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+}
+
+// ============================
+// SKILL EVOLUTION
+// ============================
+
+const evolvedSkills=[];
+
+function evolveSkill(name){
+
+if(level<50) return;
+
+evolvedSkills.push(name);
+
+showAchievement(
+name+
+" Evolution"
+);
+
+}
+
+// ============================
+// PRESTIGE PASS
+// ============================
+
+let prestigePassLevel=1;
+
+function gainPrestigePassXP(){
+
+prestigePassLevel++;
+
+coins+=100;
+
+}
+
+// ============================
+// CROSS SERVER EVENTS
+// ============================
+
+let crossServerScore=0;
+
+function addCrossServerPoints(v){
+
+crossServerScore+=v;
+
+}
+
+// ============================
+// ENDGAME LEVELS
+// ============================
+
+let endgameTier=1;
+
+function upgradeEndgameTier(){
+
+if(level<100) return;
+
+endgameTier++;
+
+weapon.damage+=50;
+
+player.hp+=200;
+
+showAchievement(
+"Endgame Tier "+
+endgameTier
+);
+
+}
+
+// ============================
+// ENDGAME HUD
+// ============================
+
+const endgameHud=
+document.createElement("div");
+
+endgameHud.style.position=
+"fixed";
+
+endgameHud.style.right=
+"20px";
+
+endgameHud.style.top=
+"650px";
+
+endgameHud.style.color=
+"#ff66ff";
+
+endgameHud.style.zIndex=
+"999";
+
+document.body.appendChild(
+endgameHud
+);
+
+function updateEndgameHUD(){
+
+endgameHud.innerHTML=
+
+`
+PvP Rating:
+${pvpRating}
+
+<br>
+
+Guild Castle:
+${guildCastleLevel}
+
+<br>
+
+Endgame Tier:
+${endgameTier}
+
+<br>
+
+Prestige Pass:
+${prestigePassLevel}
+
+<br>
+
+Cross Server:
+${crossServerScore}
+`;
+
+}
+
+// ============================
+// PATCH KILL
+// ============================
+
+const oldKillPart15=
+killEnemy;
+
+killEnemy=function(index,e){
+
+gainPrestigePassXP();
+
+addCrossServerPoints(1);
+
+oldKillPart15(
+index,
+e
+);
+
+};
+
+// ============================
+// PATCH LOOP
+// ============================
+
+const loopPart15=
+gameLoop;
+
+gameLoop=function(){
+
+if(gameStarted){
+
+updatePlayer();
+
+updateSprint();
+
+updateBots();
+
+updatePets();
+
+updateCompanions();
+
+updateStorm();
+
+updateRaidBosses();
+
+updateMythicBosses();
+
+updateDamageNumbers();
+
+updateCombo();
+
+updateBossPhases();
+
+artifactBonuses();
+
+wallCollision();
+
+updateBullets();
+
+updateEnemies();
+
+updateBossAbilities();
+
+updateParticles();
+
+updateCoins();
+
+updateExplosions();
+
+collectCoins();
+
+collectSupplyDrops();
+
+bulletCollision();
+
+updateRecoil();
+
+bossCheck();
+
+cleanupBullets();
+
+cleanupEnemies();
+
+}
+
+drawFloor();
+
+drawStorm();
+
+drawWalls();
+
+drawCoins();
+
+drawSupplyDrops();
+
+drawBullets();
+
+drawExplosions();
+
+drawEnemies();
+
+drawRaidBosses();
+
+drawMythicBosses();
+
+drawBots();
+
+drawPets();
+
+drawCompanions();
+
+drawParticles();
+
+drawDamageNumbers();
+
+drawWorldBossHUD();
+
+drawPlayerMarker();
+
+drawDirection();
+
+drawMiniMap();
+
+drawMuzzleFlash();
+
+updateHUD();
+
+updateXPHud();
+
+updateWaveHUD();
+
+updateWeaponHUD();
+
+updateShieldHUD();
+
+updateInventoryHUD();
+
+updateQuestHUD();
+
+updateMaterialHUD();
+
+updateTournamentHUD();
+
+updateAudioHUD();
+
+updateAchievementPanel();
+
+updateComboHUD();
+
+updateEnergyHUD();
+
+updateRankHUD();
+
+updatePetHUD();
+
+updateBattlePassMenu();
+
+updateGuildHUD();
+
+updateNPCHud();
+
+updateTravelMenu();
+
+updateTalentMenu();
+
+updateGlobalChat();
+
+updateEventHUD();
+
+updateStatsPanel();
+
+updateEndgameHUD();
+
+updateLeaderboard();
+
+updateKillFeed();
+
+if(player.hp<=0){
+
+gameOver();
+
+return;
+
+}
+
+requestAnimationFrame(
+gameLoop
+);
+
+};
+
+gameLoop();
 </script>
 </body>
-</html>  
+</html>
