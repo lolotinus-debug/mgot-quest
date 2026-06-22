@@ -81,6 +81,8 @@ z-index:100;
 
 <div id="hud">
 HP: <span id="hp">100</span>
+<br>
+Score: <span id="score">0</span>
 </div>
 
 <div id="joystick">
@@ -278,6 +280,9 @@ player.y+=moveY*player.speed;
 
 camera.x=player.x;
 camera.y=player.y;
+
+document.getElementById("hp").textContent=
+Math.floor(player.hp);
 
 }
 
