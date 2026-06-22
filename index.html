@@ -118,8 +118,27 @@ const camera={
 x:0,
 y:0
 };
+const bullets=[];
 
+const weapon={
+damage:20,
+fireRate:200,
+bulletSpeed:12
+};
+
+let canShoot=true;
+let autoFire=false;
+  
 const joystick=document.getElementById("joystick");
+const fireBtn=document.getElementById("fireBtn");
+
+fireBtn.addEventListener("touchstart",()=>{
+autoFire=true;
+});
+
+fireBtn.addEventListener("touchend",()=>{
+autoFire=false;
+});
 const stick=document.getElementById("stick");
 
 let moveX=0;
@@ -175,7 +194,83 @@ stick.style.left="40px";
 stick.style.top="40px";
 
 });
+function shoot(){
 
+if(!canShoot) return;
+
+canShoot=false;
+
+setTimeout(()=>{
+canShoot=true;
+},weapon.fireRate);
+
+bullets.push({
+
+x:player.x,
+y:player.y,
+
+vx:weapon.bulletSpeed,
+vy:0,
+
+life:80
+
+});
+
+}
+function updateBullets(){
+
+for(let i=bullets.length-1;i>=0;i--){
+
+const b=bullets[i];
+
+b.x+=b.vx;
+b.y+=b.vy;
+
+b.life--;
+
+if(b.life<=0){
+
+bullets.splice(i,1);
+
+}
+
+}
+
+}
+
+function drawBullets(){
+
+ctx.fillStyle="yellow";
+
+for(const b of bullets){
+
+ctx.beginPath();
+
+ctx.arc(
+
+b.x-camera.x+canvas.width/2,
+b.y-camera.y+canvas.height/2,
+
+6,
+0,
+Math.PI*2
+
+);
+
+ctx.fill();
+
+}
+
+}
+function updateWeapon(){
+
+if(autoFire){
+
+shoot();
+
+}
+
+}  
 function updatePlayer(){
 
 player.x+=moveX*player.speed;
@@ -250,6 +345,10 @@ function gameLoop(){
 
 updatePlayer();
 
+updateWeapon();
+
+updateBullets();
+
 ctx.clearRect(
 0,
 0,
@@ -258,6 +357,9 @@ canvas.height
 );
 
 drawGrid();
+
+drawBullets();
+
 drawPlayer();
 
 requestAnimationFrame(gameLoop);
