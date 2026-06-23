@@ -133,6 +133,8 @@ y:0
 };
 const bullets=[];
 const enemies=[];
+const soldierImg = new Image();
+soldierImg.src = "soldier.png";
 
 let score=0;
 let wave=1;
@@ -387,27 +389,22 @@ function drawEnemies(){
 
 for(const e of enemies){
 
-const sx=
+const sx =
 e.x-camera.x+
 canvas.width/2;
 
-const sy=
+const sy =
 e.y-camera.y+
 canvas.height/2;
 
-const angle=Math.atan2(
-player.y-e.y,
-player.x-e.x
+ctx.drawImage(
+soldierImg,
+sx - 28,
+sy - 28,
+56,
+56
 );
 
-drawSoldier(
-sx,
-sy,
-"#c0392b",
-angle
-);
-
-//// HP bar
 ctx.fillStyle="black";
 ctx.fillRect(
 sx-25,
@@ -569,11 +566,12 @@ ctx.stroke();
 
 function drawPlayer(){
 
-drawSoldier(
-canvas.width/2,
-canvas.height/2,
-"#2ecc71",
-0
+ctx.drawImage(
+soldierImg,
+canvas.width/2-32,
+canvas.height/2-32,
+64,
+64
 );
 
 }
