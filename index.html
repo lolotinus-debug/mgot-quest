@@ -352,7 +352,7 @@ const player={
 
 x:0,
 y:0,
-
+angle:0,
 size:25,
 
 speed:5,
@@ -639,6 +639,9 @@ target.x-player.x;
 const dy=
 target.y-player.y;
 
+player.angle =
+Math.atan2(dy, dx);
+
 const len=
 Math.hypot(dx,dy);
 
@@ -751,19 +754,50 @@ ctx.fill();
 
 }
 
+
 function drawPlayer(){
 
+ctx.save();
+
+ctx.translate(
+canvas.width/2,
+canvas.height/2
+);
+
+ctx.rotate(
+player.angle + Math.PI/2
+);
+
+if(
+soldierImg.complete &&
+soldierImg.naturalWidth
+){
+
 ctx.drawImage(
-
 soldierImg,
-
-canvas.width/2-32,
-canvas.height/2-32,
-
+-32,
+-32,
 64,
 64
-
 );
+
+}else{
+
+ctx.fillStyle="cyan";
+
+ctx.beginPath();
+ctx.arc(
+0,
+0,
+25,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+
+ctx.restore();
 
 }
 
