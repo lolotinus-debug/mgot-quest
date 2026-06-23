@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 
-<title>MGOT Survivor Mobile</title>
+<title>MGOT Survivor Ultimate</title>
 
 <style>
 
@@ -13,41 +13,89 @@ margin:0;
 padding:0;
 box-sizing:border-box;
 touch-action:none;
+-webkit-user-select:none;
+user-select:none;
 }
 
 html,body{
 width:100%;
 height:100%;
 overflow:hidden;
-background:#111;
-font-family:Arial;
+background:#101010;
+font-family:Arial,sans-serif;
 }
 
 canvas{
-display:block;
-width:100vw;
-height:100vh;
-background:#181818;
+position:absolute;
+left:0;
+top:0;
+width:100%;
+height:100%;
+background:#171717;
 }
 
 #hud{
 position:fixed;
 top:10px;
 left:10px;
-color:white;
 z-index:100;
+color:white;
+font-size:16px;
+background:rgba(0,0,0,.45);
+padding:10px;
+border-radius:12px;
+backdrop-filter:blur(4px);
+min-width:160px;
+}
+
+.stat{
+margin-bottom:4px;
+}
+
+.bar{
+width:180px;
+height:14px;
+background:#333;
+border-radius:20px;
+overflow:hidden;
+margin-top:4px;
+}
+
+.fill{
+height:100%;
+width:100%;
+}
+
+#hpFill{
+background:#00d95f;
+}
+
+#xpFill{
+background:#00aaff;
+width:0%;
+}
+
+#waveBox{
+position:fixed;
+top:10px;
+right:10px;
+padding:10px 16px;
+background:rgba(0,0,0,.5);
+color:white;
+border-radius:12px;
 font-size:18px;
+z-index:100;
 }
 
 #joystick{
 position:fixed;
-left:30px;
-bottom:30px;
+left:20px;
+bottom:20px;
 width:140px;
 height:140px;
 border-radius:50%;
-background:rgba(255,255,255,.15);
-z-index:100;
+background:rgba(255,255,255,.12);
+z-index:200;
 }
 
 #stick{
@@ -57,22 +105,99 @@ top:40px;
 width:60px;
 height:60px;
 border-radius:50%;
-background:rgba(255,255,255,.6);
+background:rgba(255,255,255,.7);
 }
 
 #fireBtn{
 position:fixed;
-right:40px;
-bottom:50px;
+right:30px;
+bottom:40px;
 width:120px;
 height:120px;
 border-radius:50%;
 border:none;
-background:#ff4444;
+background:#ff3a3a;
 color:white;
-font-size:24px;
+font-size:22px;
 font-weight:bold;
-z-index:100;
+z-index:200;
+}
+
+#pauseBtn{
+position:fixed;
+right:30px;
+top:70px;
+width:70px;
+height:70px;
+border:none;
+border-radius:50%;
+font-size:26px;
+background:#444;
+color:white;
+z-index:200;
+}
+
+.panel{
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.92);
+z-index:999;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+color:white;
+}
+
+.panel h1{
+margin-bottom:20px;
+}
+
+.menuBtn{
+padding:15px 25px;
+font-size:20px;
+margin:10px;
+border:none;
+border-radius:12px;
+}
+
+#upgradeContainer{
+width:90%;
+max-width:700px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.upgradeCard{
+background:#222;
+border:2px solid #555;
+border-radius:14px;
+padding:20px;
+font-size:18px;
+}
+
+#shopContainer{
+width:90%;
+max-width:700px;
+display:flex;
+flex-direction:column;
+gap:12px;
+}
+
+.shopItem{
+background:#222;
+padding:18px;
+border-radius:12px;
+border:1px solid #555;
+}
+
+.damageText{
+position:absolute;
+font-weight:bold;
+pointer-events:none;
+color:white;
+font-size:20px;
 }
 
 </style>
@@ -80,18 +205,53 @@ z-index:100;
 <body>
 
 <div id="hud">
-HP: <span id="hp">100</span>
-<br>
-LVL: <span id="lvl">1</span>
-<br>
-XP: <span id="xp">0</span>
-<br>
-Coins: <span id="coins">0</span>
-<br>
-Score: <span id="score">0</span>
-<br>
-Wave: <span id="wave">1</span>
+
+<div class="stat">
+HP
 </div>
+
+<div class="bar">
+<div id="hpFill" class="fill"></div>
+</div>
+
+<br>
+
+<div class="stat">
+XP
+</div>
+
+<div class="bar">
+<div id="xpFill" class="fill"></div>
+</div>
+
+<br>
+
+<div>
+LVL:
+<span id="lvl">1</span>
+</div>
+
+<div>
+Coins:
+<span id="coins">0</span>
+</div>
+
+<div>
+Kills:
+<span id="kills">0</span>
+</div>
+
+<div>
+Weapon:
+<span id="weaponName">Pistol</span>
+</div>
+
+</div>
+
+<div id="waveBox">
+Wave <span id="wave">1</span>
+</div>
+
 <div id="joystick">
 <div id="stick"></div>
 </div>
@@ -100,90 +260,203 @@ Wave: <span id="wave">1</span>
 FIRE
 </button>
 
+<button id="pauseBtn">
+II
+</button>
+
+<div id="gameOver" class="panel">
+
+<h1>GAME OVER</h1>
+
+<div id="finalStats"></div>
+
+<button id="restartBtn" class="menuBtn">
+RESTART
+</button>
+
+</div>
+
+<div id="pauseMenu" class="panel">
+
+<h1>PAUSED</h1>
+
+<button id="resumeBtn" class="menuBtn">
+CONTINUE
+</button>
+
+</div>
+
+<div id="levelMenu" class="panel">
+
+<h1>LEVEL UP</h1>
+
+<div id="upgradeContainer"></div>
+
+</div>
+
+<div id="shopMenu" class="panel">
+
+<h1>SHOP</h1>
+
+<div id="shopContainer"></div>
+
+<button id="closeShop" class="menuBtn">
+CLOSE
+</button>
+
+</div>
+
 <canvas id="game"></canvas>
 
 <script>
 
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
 
 function resize(){
+
 canvas.width=innerWidth;
 canvas.height=innerHeight;
+
 }
 
 resize();
-addEventListener("resize",resize);
 
-const player={
-x:0,
-y:0,
-size:25,
-speed:5,
-hp:100,
+addEventListener(
+"resize",
+resize
+);
 
-xp:0,
-level:1,
-coins:0  
-};
+let gameRunning=true;
+let paused=false;
+let autoFire=false;
+
+let score=0;
+let wave=1;
+let kills=0;
 
 const camera={
 x:0,
 y:0
 };
+
 const bullets=[];
 const enemies=[];
-const soldierImg = new Image();
-soldierImg.src = "soldier.png";
+const drops=[];
+const effects=[];
 
-let score=0;
-let wave=1;
-let enemiesKilled=0;  
-const weapon={
-damage:20,
-fireRate:200,
-bulletSpeed:12
+const player={
+
+x:0,
+y:0,
+
+size:25,
+
+speed:5,
+
+maxHp:100,
+hp:100,
+
+xp:0,
+level:1,
+
+coins:0,
+
+pickupRange:120
+
 };
 
-let canShoot=true;
-let autoFire=false;
-  
-const joystick=document.getElementById("joystick");
-const fireBtn=document.getElementById("fireBtn");
+const weapons={
 
-fireBtn.addEventListener("touchstart",()=>{
-autoFire=true;
-});
+pistol:{
+name:"Pistol",
+damage:20,
+fireRate:250,
+bulletSpeed:12,
+multiShot:1
+},
 
-fireBtn.addEventListener("touchend",()=>{
-autoFire=false;
-});
-const stick=document.getElementById("stick");
+smg:{
+name:"SMG",
+damage:12,
+fireRate:90,
+bulletSpeed:13,
+multiShot:1
+},
+
+shotgun:{
+name:"Shotgun",
+damage:10,
+fireRate:500,
+bulletSpeed:11,
+multiShot:5
+},
+
+sniper:{
+name:"Sniper",
+damage:90,
+fireRate:900,
+bulletSpeed:20,
+multiShot:1
+}
+
+};
+
+let currentWeapon="pistol";
+
+const soldierImg = new Image();
+soldierImg.src="soldier.png";
+const joystick=
+document.getElementById("joystick");
+
+const stick=
+document.getElementById("stick");
+
+const fireBtn=
+document.getElementById("fireBtn");
 
 let moveX=0;
 let moveY=0;
 
 let dragging=false;
+let canShoot=true;
 
-joystick.addEventListener("touchstart",e=>{
+joystick.addEventListener(
+"touchstart",
+()=>{
 dragging=true;
-});
+}
+);
 
-joystick.addEventListener("touchmove",e=>{
+joystick.addEventListener(
+"touchmove",
+e=>{
 
 if(!dragging)return;
 
 const touch=e.touches[0];
 
-const rect=joystick.getBoundingClientRect();
+const rect=
+joystick.getBoundingClientRect();
 
 const cx=rect.width/2;
 const cy=rect.height/2;
 
-let dx=touch.clientX-rect.left-cx;
-let dy=touch.clientY-rect.top-cy;
+let dx=
+touch.clientX-
+rect.left-
+cx;
 
-const dist=Math.hypot(dx,dy);
+let dy=
+touch.clientY-
+rect.top-
+cy;
+
+const dist=
+Math.hypot(dx,dy);
 
 const max=40;
 
@@ -194,15 +467,21 @@ dy=(dy/dist)*max;
 
 }
 
-stick.style.left=(dx+40)+"px";
-stick.style.top=(dy+40)+"px";
+stick.style.left=
+(dx+40)+"px";
+
+stick.style.top=
+(dy+40)+"px";
 
 moveX=dx/max;
 moveY=dy/max;
 
-});
+}
+);
 
-joystick.addEventListener("touchend",()=>{
+joystick.addEventListener(
+"touchend",
+()=>{
 
 dragging=false;
 
@@ -212,20 +491,130 @@ moveY=0;
 stick.style.left="40px";
 stick.style.top="40px";
 
-});
+}
+);
+
+fireBtn.addEventListener(
+"touchstart",
+()=>{
+autoFire=true;
+}
+);
+
+fireBtn.addEventListener(
+"touchend",
+()=>{
+autoFire=false;
+}
+);
+
+function updatePlayer(){
+
+player.x+=
+moveX*player.speed;
+
+player.y+=
+moveY*player.speed;
+
+camera.x=player.x;
+camera.y=player.y;
+
+const hpPercent=
+(player.hp/player.maxHp)*100;
+
+document.getElementById(
+"hpFill"
+).style.width=
+hpPercent+"%";
+
+document.getElementById(
+"lvl"
+).textContent=
+player.level;
+
+document.getElementById(
+"coins"
+).textContent=
+player.coins;
+
+document.getElementById(
+"kills"
+).textContent=
+kills;
+
+document.getElementById(
+"weaponName"
+).textContent=
+weapons[currentWeapon].name;
+
+if(player.hp<=0){
+
+player.hp=0;
+
+gameOver();
+
+}
+
+}
+
+function addXP(amount){
+
+player.xp+=amount;
+
+let need=
+player.level*100;
+
+while(player.xp>=need){
+
+player.xp-=need;
+
+player.level++;
+
+showLevelUp();
+
+need=
+player.level*100;
+
+}
+
+const percent=
+(player.xp/need)*100;
+
+document.getElementById(
+"xpFill"
+).style.width=
+percent+"%";
+
+}
+
+function updateWeapon(){
+
+if(autoFire){
+
+shoot();
+
+}
+
+}
+
 function shoot(){
 
-if(!canShoot) return;
+if(!canShoot)return;
 
-if(enemies.length===0) return;
+if(enemies.length===0)return;
 
 canShoot=false;
 
 setTimeout(()=>{
+
 canShoot=true;
-},weapon.fireRate);
+
+},
+weapons[currentWeapon].fireRate
+);
 
 let target=enemies[0];
+
 let nearest=999999;
 
 for(const e of enemies){
@@ -244,18 +633,62 @@ target=e;
 
 }
 
-const dx=target.x-player.x;
-const dy=target.y-player.y;
+const dx=
+target.x-player.x;
 
-const len=Math.hypot(dx,dy);
+const dy=
+target.y-player.y;
+
+const len=
+Math.hypot(dx,dy);
+
+const multi=
+weapons[currentWeapon]
+.multiShot;
+
+for(let i=0;i<multi;i++){
+
+let spread=0;
+
+if(multi>1){
+
+spread=
+(i-(multi-1)/2)*0.15;
+
+}
+
+const cos=
+Math.cos(spread);
+
+const sin=
+Math.sin(spread);
+
+const vx=
+(dx/len)*cos-
+(dy/len)*sin;
+
+const vy=
+(dx/len)*sin+
+(dy/len)*cos;
 
 bullets.push({
 
 x:player.x,
 y:player.y,
 
-vx:(dx/len)*weapon.bulletSpeed,
-vy:(dy/len)*weapon.bulletSpeed,
+vx:
+vx*
+weapons[currentWeapon]
+.bulletSpeed,
+
+vy:
+vy*
+weapons[currentWeapon]
+.bulletSpeed,
+
+damage:
+weapons[currentWeapon]
+.damage,
 
 life:100
 
@@ -263,29 +696,15 @@ life:100
 
 }
 
-function addXP(amount){
-
-player.xp+=amount;
-
-const need=player.level*100;
-
-if(player.xp>=need){
-
-player.xp-=need;
-
-player.level++;
-
-weapon.damage+=5;
-
-player.hp=100;
-
 }
 
-}  
-  
 function updateBullets(){
 
-for(let i=bullets.length-1;i>=0;i--){
+for(
+let i=bullets.length-1;
+i>=0;
+i--
+){
 
 const b=bullets[i];
 
@@ -314,10 +733,13 @@ ctx.beginPath();
 
 ctx.arc(
 
-b.x-camera.x+canvas.width/2,
-b.y-camera.y+canvas.height/2,
+b.x-camera.x+
+canvas.width/2,
 
-6,
+b.y-camera.y+
+canvas.height/2,
+
+5,
 0,
 Math.PI*2
 
@@ -329,45 +751,204 @@ ctx.fill();
 
 }
 
-function spawnEnemy(){
+function drawPlayer(){
 
-const angle=Math.random()*Math.PI*2;
+ctx.drawImage(
 
-const distance=600+Math.random()*300;
+soldierImg,
 
-enemies.push({
+canvas.width/2-32,
+canvas.height/2-32,
+
+64,
+64
+
+);
+
+}
+
+function drawGrid(){
+
+ctx.strokeStyle="#222";
+
+for(
+let x=-5000;
+x<5000;
+x+=100
+){
+
+ctx.beginPath();
+
+ctx.moveTo(
+x-camera.x+
+canvas.width/2,
+0
+);
+
+ctx.lineTo(
+x-camera.x+
+canvas.width/2,
+canvas.height
+);
+
+ctx.stroke();
+
+}
+
+for(
+let y=-5000;
+y<5000;
+y+=100
+){
+
+ctx.beginPath();
+
+ctx.moveTo(
+0,
+y-camera.y+
+canvas.height/2
+);
+
+ctx.lineTo(
+canvas.width,
+y-camera.y+
+canvas.height/2
+);
+
+ctx.stroke();
+
+}
+
+  }
+// ================= ENEMIES =================
+
+function spawnEnemy(type="walker"){
+
+let angle=Math.random()*Math.PI*2;
+let distance=700+Math.random()*300;
+
+let enemy={
 
 x:player.x+Math.cos(angle)*distance,
 y:player.y+Math.sin(angle)*distance,
 
-hp:50+(wave*10),
-maxHp:50+(wave*10),
+type:type,
 
-size:20,
+size:22,
+speed:1.5,
 
-speed:1.5+(wave*0.05)
+hp:60+(wave*10),
+maxHp:60+(wave*10),
+
+damage:0.2,
+reward:5
+
+};
+
+if(type==="runner"){
+
+enemy.speed=3.5;
+enemy.hp=40+(wave*8);
+enemy.maxHp=enemy.hp;
+enemy.reward=8;
+
+}
+
+if(type==="tank"){
+
+enemy.speed=0.8;
+enemy.hp=300+(wave*50);
+enemy.maxHp=enemy.hp;
+enemy.size=30;
+enemy.reward=20;
+
+}
+
+if(type==="shooter"){
+
+enemy.speed=1.2;
+enemy.hp=120+(wave*15);
+enemy.maxHp=enemy.hp;
+enemy.reward=12;
+
+}
+
+enemies.push(enemy);
+
+}
+
+function spawnBoss(){
+
+enemies.push({
+
+x:player.x+1000,
+y:player.y+1000,
+
+type:"boss",
+
+size:55,
+
+speed:1.2,
+
+hp:3000+(wave*500),
+maxHp:3000+(wave*500),
+
+damage:1,
+
+reward:200
 
 });
 
 }
+
 setInterval(()=>{
 
-if(enemies.length<20){
+if(!gameRunning) return;
+if(paused) return;
 
-spawnEnemy();
+let limit=
+15+(wave*2);
+
+if(enemies.length<limit){
+
+let rnd=Math.random();
+
+if(rnd<0.55){
+
+spawnEnemy("walker");
+
+}else if(rnd<0.75){
+
+spawnEnemy("runner");
+
+}else if(rnd<0.92){
+
+spawnEnemy("shooter");
+
+}else{
+
+spawnEnemy("tank");
 
 }
 
-},1500);  
+}
+
+},1200);
+
+// ================= ENEMY UPDATE =================
 
 function updateEnemies(){
 
 for(const e of enemies){
 
-const dx=player.x-e.x;
-const dy=player.y-e.y;
+let dx=
+player.x-e.x;
 
-const dist=Math.hypot(dx,dy);
+let dy=
+player.y-e.y;
+
+let dist=
+Math.hypot(dx,dy);
 
 if(dist>0){
 
@@ -376,89 +957,125 @@ e.y+=(dy/dist)*e.speed;
 
 }
 
-if(dist<35){
+if(dist<40){
 
-player.hp-=0.1;
+player.hp-=e.damage;
+
+}
+
+}
+
+}
+
+// ================= DAMAGE TEXT =================
+
+function createDamageText(
+x,
+y,
+value
+){
+
+effects.push({
+
+x:x,
+y:y,
+
+text:value,
+
+life:50,
+vy:-1
+
+});
+
+}
+
+function updateEffects(){
+
+for(
+let i=effects.length-1;
+i>=0;
+i--
+){
+
+let ef=
+effects[i];
+
+ef.y+=ef.vy;
+ef.life--;
+
+if(ef.life<=0){
+
+effects.splice(i,1);
 
 }
 
 }
 
 }
-function drawEnemies(){
 
-for(const e of enemies){
+function drawEffects(){
 
-const sx =
-e.x-camera.x+
-canvas.width/2;
+ctx.fillStyle="white";
+ctx.font="18px Arial";
 
-const sy =
-e.y-camera.y+
-canvas.height/2;
+for(const ef of effects){
 
-ctx.drawImage(
-soldierImg,
-sx - 28,
-sy - 28,
-56,
-56
+ctx.fillText(
+
+ef.text,
+
+ef.x-camera.x+
+canvas.width/2,
+
+ef.y-camera.y+
+canvas.height/2
+
 );
 
-ctx.fillStyle="black";
-ctx.fillRect(
-sx-25,
-sy-45,
-50,
-6
-);
-
-ctx.fillStyle="lime";
-ctx.fillRect(
-sx-25,
-sy-45,
-50*(e.hp/e.maxHp),
-6
-);
-
 }
 
 }
+
+// ================= BULLET COLLISION =================
 
 function bulletCollision(){
 
-for(let i=bullets.length-1;i>=0;i--){
+for(
+let i=bullets.length-1;
+i>=0;
+i--
+){
 
-const b=bullets[i];
+let b=bullets[i];
 
-for(let j=enemies.length-1;j>=0;j--){
+for(
+let j=enemies.length-1;
+j>=0;
+j--
+){
 
-const e=enemies[j];
+let e=enemies[j];
 
-const dist=Math.hypot(
+let dist=Math.hypot(
 b.x-e.x,
 b.y-e.y
 );
 
 if(dist<e.size){
 
-e.hp-=weapon.damage;
+e.hp-=b.damage;
+
+createDamageText(
+e.x,
+e.y,
+Math.floor(b.damage)
+);
 
 bullets.splice(i,1);
 
 if(e.hp<=0){
 
-score++;
-
-enemiesKilled++;
-
-player.coins+=5;
-
-addXP(25);
-
-document.getElementById(
-"score"
-).textContent=score;
+enemyKilled(e);
 
 enemies.splice(j,1);
 
@@ -474,11 +1091,36 @@ break;
 
 }
 
-function updateWave(){
+// ================= KILL REWARD =================
 
-if(enemiesKilled>=10){
+function enemyKilled(enemy){
 
-enemiesKilled=0;
+kills++;
+score++;
+
+player.coins+=enemy.reward;
+
+dropLoot(
+enemy.x,
+enemy.y
+);
+
+addXP(
+20+
+wave*2
+);
+
+if(kills%10===0){
+
+nextWave();
+
+}
+
+}
+
+// ================= WAVES =================
+
+function nextWave(){
 
 wave++;
 
@@ -486,161 +1128,1474 @@ document.getElementById(
 "wave"
 ).textContent=wave;
 
-}
+if(wave%5===0){
 
-} 
-  
-function updateWeapon(){
-
-if(autoFire){
-
-shoot();
+spawnBoss();
 
 }
 
-}  
-function updatePlayer(){
-
-player.x+=moveX*player.speed;
-player.y+=moveY*player.speed;
-
-camera.x=player.x;
-camera.y=player.y;
-
-document.getElementById("hp").textContent=
-Math.floor(player.hp);
-document.getElementById(
-"lvl"
-).textContent=player.level;
-
-document.getElementById(
-"xp"
-).textContent=player.xp;
-
-document.getElementById(
-"coins"
-).textContent=player.coins;  
 }
 
-function drawGrid(){
+// ================= DRAW ENEMIES =================
 
-ctx.strokeStyle="#222";
+function drawEnemies(){
 
-for(let x=-5000;x<5000;x+=100){
+for(const e of enemies){
+
+let sx=
+e.x-camera.x+
+canvas.width/2;
+
+let sy=
+e.y-camera.y+
+canvas.height/2;
+
+if(e.type==="boss"){
+
+ctx.fillStyle="#8b0000";
+
+}else if(
+e.type==="tank"
+){
+
+ctx.fillStyle="#8844ff";
+
+}else if(
+e.type==="runner"
+){
+
+ctx.fillStyle="#ff9900";
+
+}else if(
+e.type==="shooter"
+){
+
+ctx.fillStyle="#00ccff";
+
+}else{
+
+ctx.fillStyle="#66ff66";
+
+}
 
 ctx.beginPath();
 
-ctx.moveTo(
-x-camera.x+canvas.width/2,
-0
-);
-
-ctx.lineTo(
-x-camera.x+canvas.width/2,
-canvas.height
-);
-
-ctx.stroke();
-
-}
-
-for(let y=-5000;y<5000;y+=100){
-
-ctx.beginPath();
-
-ctx.moveTo(
+ctx.arc(
+sx,
+sy,
+e.size,
 0,
-y-camera.y+canvas.height/2
+Math.PI*2
 );
 
-ctx.lineTo(
-canvas.width,
-y-camera.y+canvas.height/2
-);
-
-ctx.stroke();
-
-}
-
-}
-
-function drawPlayer(){
-
-ctx.drawImage(
-soldierImg,
-canvas.width/2-32,
-canvas.height/2-32,
-64,
-64
-);
-
-}
-  
-function drawSoldier(x,y,color,angle=0){
-
-ctx.save();
-
-ctx.translate(x,y);
-ctx.rotate(angle);
-
-//// nohy
-ctx.strokeStyle="#222";
-ctx.lineWidth=5;
-
-ctx.beginPath();
-ctx.moveTo(-8,15);
-ctx.lineTo(-5,28);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(8,15);
-ctx.lineTo(5,28);
-ctx.stroke();
-
-//// telo
-ctx.fillStyle=color;
-ctx.fillRect(-12,-10,24,28);
-
-//// hlava
-ctx.fillStyle="#f1c27d";
-ctx.beginPath();
-ctx.arc(0,-18,10,0,Math.PI*2);
 ctx.fill();
 
-//// prilba
-ctx.fillStyle="#444";
-ctx.beginPath();
-ctx.arc(0,-20,11,Math.PI,0);
-ctx.fill();
+ctx.fillStyle="#000";
 
-//// ruky
-ctx.strokeStyle="#f1c27d";
-ctx.lineWidth=4;
+ctx.fillRect(
+sx-30,
+sy-e.size-15,
+60,
+6
+);
 
-ctx.beginPath();
-ctx.moveTo(-10,0);
-ctx.lineTo(-18,6);
-ctx.stroke();
+ctx.fillStyle="lime";
 
-ctx.beginPath();
-ctx.moveTo(10,0);
-ctx.lineTo(18,6);
-ctx.stroke();
+ctx.fillRect(
+sx-30,
+sy-e.size-15,
 
-//// puška
-ctx.strokeStyle="#111";
-ctx.lineWidth=6;
+60*
+(e.hp/e.maxHp),
 
-ctx.beginPath();
-ctx.moveTo(5,-2);
-ctx.lineTo(28,4);
-ctx.stroke();
+6
+);
 
-ctx.restore();
 }
 
+}
+
+// ================= GAME OVER =================
+
+function gameOver(){
+
+gameRunning=false;
+
+document.getElementById(
+"finalStats"
+).innerHTML=
+
+"Wave: "+wave+
+"<br>" +
+"Kills: "+kills+
+"<br>" +
+"Coins: "+player.coins;
+
+document.getElementById(
+"gameOver"
+).style.display=
+"flex";
+
+}
+
+// ================= RESTART =================
+
+document
+.getElementById(
+"restartBtn"
+)
+.addEventListener(
+"click",
+()=>{
+
+location.reload();
+
+}
+);
+
+// ================= LOOT SYSTEM =================
+
+function dropLoot(x,y){
+
+// XP GEM
+
+drops.push({
+
+x:x+(Math.random()*40-20),
+y:y+(Math.random()*40-20),
+
+type:"xp",
+
+value:15+wave,
+
+size:10
+
+});
+
+// COIN
+
+if(Math.random()<0.8){
+
+drops.push({
+
+x:x+(Math.random()*60-30),
+y:y+(Math.random()*60-30),
+
+type:"coin",
+
+value:enemyCoinValue(),
+
+size:10
+
+});
+
+}
+
+// MEDKIT
+
+if(Math.random()<0.12){
+
+drops.push({
+
+x:x+(Math.random()*60-30),
+y:y+(Math.random()*60-30),
+
+type:"medkit",
+
+value:25,
+
+size:12
+
+});
+
+}
+
+}
+
+function enemyCoinValue(){
+
+return 2+Math.floor(wave*0.5);
+
+}
+
+// ================= MAGNET =================
+
+function updateDrops(){
+
+for(let i=drops.length-1;i>=0;i--){
+
+const d=drops[i];
+
+const dx=
+player.x-d.x;
+
+const dy=
+player.y-d.y;
+
+const dist=
+Math.hypot(dx,dy);
+
+// magnet radius
+
+if(dist<player.pickupRange){
+
+const speed=
+2+
+(player.pickupRange-dist)/20;
+
+d.x+=(dx/dist)*speed;
+d.y+=(dy/dist)*speed;
+
+}
+
+// pickup
+
+if(dist<25){
+
+collectDrop(d);
+
+drops.splice(i,1);
+
+continue;
+
+}
+
+}
+
+}
+
+function collectDrop(drop){
+
+if(drop.type==="xp"){
+
+addXP(drop.value);
+
+}
+
+else if(drop.type==="coin"){
+
+player.coins+=drop.value;
+
+}
+
+else if(drop.type==="medkit"){
+
+player.hp=Math.min(
+player.maxHp,
+player.hp+drop.value
+);
+
+}
+
+}
+
+// ================= DRAW DROPS =================
+
+function drawDrops(){
+
+for(const d of drops){
+
+const sx=
+d.x-camera.x+
+canvas.width/2;
+
+const sy=
+d.y-camera.y+
+canvas.height/2;
+
+if(d.type==="xp"){
+
+ctx.fillStyle="#00aaff";
+
+ctx.beginPath();
+ctx.arc(
+sx,
+sy,
+8,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+
+else if(d.type==="coin"){
+
+ctx.fillStyle="gold";
+
+ctx.beginPath();
+ctx.arc(
+sx,
+sy,
+8,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+
+else if(d.type==="medkit"){
+
+ctx.fillStyle="#ff4444";
+
+ctx.fillRect(
+sx-8,
+sy-8,
+16,
+16
+);
+
+ctx.fillStyle="white";
+
+ctx.fillRect(
+sx-2,
+sy-6,
+4,
+12
+);
+
+ctx.fillRect(
+sx-6,
+sy-2,
+12,
+4
+);
+
+}
+
+}
+
+}
+
+// ================= PICKUP UPGRADE HELPERS =================
+
+function increasePickupRange(){
+
+player.pickupRange+=30;
+
+}
+
+function healPlayer(amount){
+
+player.hp=Math.min(
+player.maxHp,
+player.hp+amount
+);
+
+}
+
+// ================= DROP EFFECTS =================
+
+function animateDrops(){
+
+const time=
+Date.now()*0.003;
+
+for(const d of drops){
+
+d.floatOffset=
+Math.sin(
+time+d.x*0.01
+)*3;
+
+}
+
+}
+
+// ================= OVERRIDE DRAW DROPS =================
+
+function drawDropsAnimated(){
+
+for(const d of drops){
+
+const sx=
+d.x-camera.x+
+canvas.width/2;
+
+const sy=
+d.y-camera.y+
+canvas.height/2+
+(d.floatOffset||0);
+
+if(d.type==="xp"){
+
+ctx.fillStyle="#00aaff";
+
+ctx.beginPath();
+ctx.arc(
+sx,
+sy,
+8,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+
+else if(d.type==="coin"){
+
+ctx.fillStyle="gold";
+
+ctx.beginPath();
+ctx.arc(
+sx,
+sy,
+8,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+
+else if(d.type==="medkit"){
+
+ctx.fillStyle="#ff4444";
+
+ctx.fillRect(
+sx-8,
+sy-8,
+16,
+16
+);
+
+ctx.fillStyle="white";
+
+ctx.fillRect(
+sx-2,
+sy-6,
+4,
+12
+);
+
+ctx.fillRect(
+sx-6,
+sy-2,
+12,
+4
+);
+
+}
+
+}
+
+}
+
+// ================= AUTO HEAL PER WAVE =================
+
+function rewardWave(){
+
+player.coins+=wave*10;
+
+healPlayer(20);
+
+}
+
+// ================= UPDATE PACKAGE =================
+
+function updateLootSystem(){
+
+animateDrops();
+
+updateDrops();
+
+}
+
+// ================= DRAW PACKAGE =================
+
+function drawLootSystem(){
+
+drawDropsAnimated();
+
+  }
+
+// ================= LEVEL UP SYSTEM =================
+
+const upgradePool=[
+
+{
+name:"Damage +10",
+desc:"Zvýši poškodenie zbrane",
+apply:()=>{
+
+weapons[currentWeapon].damage+=10;
+
+}
+},
+
+{
+name:"Fire Rate +15%",
+desc:"Strieľa rýchlejšie",
+apply:()=>{
+
+weapons[currentWeapon].fireRate=
+Math.max(
+40,
+Math.floor(
+weapons[currentWeapon].fireRate*0.85
+)
+);
+
+}
+},
+
+{
+name:"Bullet Speed +20%",
+desc:"Rýchlejšie projektily",
+apply:()=>{
+
+weapons[currentWeapon].bulletSpeed*=1.2;
+
+}
+},
+
+{
+name:"Max HP +25",
+desc:"Viac života",
+apply:()=>{
+
+player.maxHp+=25;
+player.hp+=25;
+
+}
+},
+
+{
+name:"Heal 50",
+desc:"Okamžité liečenie",
+apply:()=>{
+
+player.hp=Math.min(
+player.maxHp,
+player.hp+50
+);
+
+}
+},
+
+{
+name:"Movement Speed +1",
+desc:"Rýchlejší pohyb",
+apply:()=>{
+
+player.speed+=1;
+
+}
+},
+
+{
+name:"Magnet Range +50",
+desc:"Väčší dosah zbierania",
+apply:()=>{
+
+player.pickupRange+=50;
+
+}
+},
+
+{
+name:"Multishot +1",
+desc:"Viac projektilov",
+apply:()=>{
+
+weapons[currentWeapon]
+.multiShot++;
+
+}
+},
+
+{
+name:"Critical Chance +5%",
+desc:"Vyššia šanca na crit",
+apply:()=>{
+
+player.critChance+=5;
+
+}
+},
+
+{
+name:"Critical Damage +25%",
+desc:"Silnejšie crit zásahy",
+apply:()=>{
+
+player.critDamage+=0.25;
+
+}
+},
+
+{
+name:"Armor +1",
+desc:"Menšie prijaté poškodenie",
+apply:()=>{
+
+player.armor++;
+
+}
+},
+
+{
+name:"Lucky Drop +10%",
+desc:"Viac coinov a lootu",
+apply:()=>{
+
+player.luck+=0.10;
+
+}
+}
+
+];
+
+// ================= PLAYER STATS =================
+
+player.critChance=0;
+player.critDamage=1.5;
+player.armor=0;
+player.luck=1;
+
+// ================= LEVEL MENU =================
+
+function showLevelUp(){
+
+paused=true;
+
+const menu=
+document.getElementById(
+"levelMenu"
+);
+
+const container=
+document.getElementById(
+"upgradeContainer"
+);
+
+container.innerHTML="";
+
+menu.style.display="flex";
+
+let selected=[];
+
+while(selected.length<3){
+
+const up=
+upgradePool[
+Math.floor(
+Math.random()*
+upgradePool.length
+)
+];
+
+if(!selected.includes(up)){
+
+selected.push(up);
+
+}
+
+}
+
+for(const upgrade of selected){
+
+const card=
+document.createElement("div");
+
+card.className=
+"upgradeCard";
+
+card.innerHTML=
+
+"<h3>"+upgrade.name+"</h3>" +
+"<br>" +
+upgrade.desc;
+
+card.onclick=()=>{
+
+upgrade.apply();
+
+menu.style.display=
+"none";
+
+paused=false;
+
+};
+
+container.appendChild(card);
+
+}
+
+}
+
+// ================= CRITICAL DAMAGE =================
+
+function getBulletDamage(){
+
+let damage=
+weapons[currentWeapon]
+.damage;
+
+if(
+Math.random()*100<
+player.critChance
+){
+
+damage=
+Math.floor(
+damage*
+player.critDamage
+);
+
+}
+
+return damage;
+
+}
+
+// ================= OVERRIDE SHOOT =================
+
+const oldShoot=shoot;
+
+shoot=function(){
+
+if(!canShoot)return;
+
+if(enemies.length===0)return;
+
+canShoot=false;
+
+setTimeout(()=>{
+
+canShoot=true;
+
+},
+weapons[currentWeapon]
+.fireRate
+);
+
+let target=enemies[0];
+let nearest=999999;
+
+for(const e of enemies){
+
+const dist=Math.hypot(
+e.x-player.x,
+e.y-player.y
+);
+
+if(dist<nearest){
+
+nearest=dist;
+target=e;
+
+}
+
+}
+
+const dx=
+target.x-player.x;
+
+const dy=
+target.y-player.y;
+
+const len=
+Math.hypot(dx,dy);
+
+const multi=
+weapons[currentWeapon]
+.multiShot;
+
+for(let i=0;i<multi;i++){
+
+let spread=0;
+
+if(multi>1){
+
+spread=
+(i-(multi-1)/2)
+*0.15;
+
+}
+
+const cos=
+Math.cos(spread);
+
+const sin=
+Math.sin(spread);
+
+const vx=
+(dx/len)*cos-
+(dy/len)*sin;
+
+const vy=
+(dx/len)*sin+
+(dy/len)*cos;
+
+bullets.push({
+
+x:player.x,
+y:player.y,
+
+vx:
+vx*
+weapons[currentWeapon]
+.bulletSpeed,
+
+vy:
+vy*
+weapons[currentWeapon]
+.bulletSpeed,
+
+damage:
+getBulletDamage(),
+
+life:100
+
+});
+
+}
+
+};
+
+// ================= ARMOR SUPPORT =================
+
+const oldUpdateEnemies=
+updateEnemies;
+
+updateEnemies=function(){
+
+for(const e of enemies){
+
+const dx=
+player.x-e.x;
+
+const dy=
+player.y-e.y;
+
+const dist=
+Math.hypot(dx,dy);
+
+if(dist>0){
+
+e.x+=(dx/dist)*e.speed;
+e.y+=(dy/dist)*e.speed;
+
+}
+
+if(dist<40){
+
+const dmg=
+Math.max(
+0.05,
+e.damage-
+(player.armor*0.05)
+);
+
+player.hp-=dmg;
+
+}
+
+}
+
+};
+
+// ================= PLAYER INFO HELPERS =================
+
+function playerStats(){
+
+return{
+
+damage:
+weapons[currentWeapon]
+.damage,
+
+fireRate:
+weapons[currentWeapon]
+.fireRate,
+
+speed:
+player.speed,
+
+hp:
+player.maxHp,
+
+crit:
+player.critChance
+
+};
+
+  }
+
+// ================= WEAPON UNLOCKS =================
+
+player.unlockedWeapons=[
+"pistol"
+];
+
+function unlockWeapon(id){
+
+if(
+!player.unlockedWeapons
+.includes(id)
+){
+
+player.unlockedWeapons
+.push(id);
+
+}
+
+}
+
+function equipWeapon(id){
+
+if(
+player.unlockedWeapons
+.includes(id)
+){
+
+currentWeapon=id;
+
+}
+
+}
+
+// ================= SHOP SYSTEM =================
+
+const shopItems=[
+
+{
+name:"Heal +50 HP",
+cost:50,
+buy:()=>{
+
+player.hp=Math.min(
+player.maxHp,
+player.hp+50
+);
+
+}
+},
+
+{
+name:"Damage Upgrade",
+cost:100,
+buy:()=>{
+
+weapons[currentWeapon]
+.damage+=10;
+
+}
+},
+
+{
+name:"Max HP Upgrade",
+cost:120,
+buy:()=>{
+
+player.maxHp+=20;
+player.hp+=20;
+
+}
+},
+
+{
+name:"Speed Upgrade",
+cost:100,
+buy:()=>{
+
+player.speed+=0.5;
+
+}
+},
+
+{
+name:"Unlock SMG",
+cost:300,
+buy:()=>{
+
+unlockWeapon("smg");
+
+}
+},
+
+{
+name:"Unlock Shotgun",
+cost:600,
+buy:()=>{
+
+unlockWeapon("shotgun");
+
+}
+},
+
+{
+name:"Unlock Sniper",
+cost:1000,
+buy:()=>{
+
+unlockWeapon("sniper");
+
+}
+}
+
+];
+
+// ================= SHOP UI =================
+
+function openShop(){
+
+paused=true;
+
+const menu=
+document.getElementById(
+"shopMenu"
+);
+
+const container=
+document.getElementById(
+"shopContainer"
+);
+
+container.innerHTML="";
+
+for(const item of shopItems){
+
+const div=
+document.createElement("div");
+
+div.className=
+"shopItem";
+
+div.innerHTML=
+
+"<b>"+item.name+"</b>" +
+"<br>" +
+"Cost: "+
+item.cost+
+" Coins";
+
+div.onclick=()=>{
+
+if(
+player.coins<
+item.cost
+)return;
+
+player.coins-=
+item.cost;
+
+item.buy();
+
+openShop();
+
+};
+
+container.appendChild(div);
+
+}
+
+// ================= WEAPON SECTION =================
+
+const weaponTitle=
+document.createElement("div");
+
+weaponTitle.style.marginTop=
+"20px";
+
+weaponTitle.innerHTML=
+"<h2>Weapons</h2>";
+
+container.appendChild(
+weaponTitle
+);
+
+for(
+const weaponId of
+player.unlockedWeapons
+){
+
+const btn=
+document.createElement("div");
+
+btn.className=
+"shopItem";
+
+btn.innerHTML=
+
+"<b>"+
+weapons[weaponId].name+
+"</b>";
+
+btn.onclick=()=>{
+
+equipWeapon(
+weaponId
+);
+
+};
+
+container.appendChild(
+btn
+);
+
+}
+
+menu.style.display=
+"flex";
+
+}
+
+// ================= CLOSE SHOP =================
+
+document
+.getElementById(
+"closeShop"
+)
+.addEventListener(
+"click",
+()=>{
+
+document
+.getElementById(
+"shopMenu"
+)
+.style.display=
+"none";
+
+paused=false;
+
+}
+);
+
+// ================= PAUSE MENU =================
+
+document
+.getElementById(
+"pauseBtn"
+)
+.addEventListener(
+"click",
+()=>{
+
+paused=true;
+
+document
+.getElementById(
+"pauseMenu"
+)
+.style.display=
+"flex";
+
+}
+);
+
+document
+.getElementById(
+"resumeBtn"
+)
+.addEventListener(
+"click",
+()=>{
+
+paused=false;
+
+document
+.getElementById(
+"pauseMenu"
+)
+.style.display=
+"none";
+
+}
+);
+
+// ================= SHOP EVERY 3 WAVES =================
+
+const oldNextWave=
+nextWave;
+
+nextWave=function(){
+
+oldNextWave();
+
+rewardWave();
+
+if(wave%3===0){
+
+setTimeout(()=>{
+
+openShop();
+
+},500);
+
+}
+
+};
+
+// ================= SAVE SYSTEM =================
+
+function saveGame(){
+
+const saveData={
+
+coins:
+player.coins,
+
+level:
+player.level,
+
+maxHp:
+player.maxHp,
+
+speed:
+player.speed,
+
+pickupRange:
+player.pickupRange,
+
+weapons:
+player.unlockedWeapons,
+
+currentWeapon:
+currentWeapon,
+
+wave:
+wave,
+
+kills:
+kills
+
+};
+
+localStorage.setItem(
+"mgot_save",
+JSON.stringify(
+saveData
+)
+);
+
+}
+
+function loadGame(){
+
+const raw=
+localStorage.getItem(
+"mgot_save"
+);
+
+if(!raw)return;
+
+const save=
+JSON.parse(raw);
+
+player.coins=
+save.coins||0;
+
+player.level=
+save.level||1;
+
+player.maxHp=
+save.maxHp||100;
+
+player.hp=
+player.maxHp;
+
+player.speed=
+save.speed||5;
+
+player.pickupRange=
+save.pickupRange||120;
+
+player.unlockedWeapons=
+save.weapons||
+["pistol"];
+
+currentWeapon=
+save.currentWeapon||
+"pistol";
+
+wave=
+save.wave||1;
+
+kills=
+save.kills||0;
+
+document
+.getElementById("wave")
+.textContent=
+wave;
+
+}
+
+loadGame();
+
+setInterval(
+saveGame,
+10000
+);
+
+// ================= AUTO SAVE ON EXIT =================
+
+addEventListener(
+"beforeunload",
+saveGame
+);
+
+// ================= WEAPON HUD UPDATE =================
+
+function updateWeaponHud(){
+
+document
+.getElementById(
+"weaponName"
+)
+.textContent=
+weapons[
+currentWeapon
+].name;
+
+}
+
+// ================= EXTRA WEAPON BALANCE =================
+
+weapons.smg.damage=12;
+weapons.smg.fireRate=90;
+weapons.smg.bulletSpeed=13;
+
+weapons.shotgun.damage=10;
+weapons.shotgun.fireRate=500;
+weapons.shotgun.multiShot=5;
+
+weapons.sniper.damage=90;
+weapons.sniper.fireRate=900;
+weapons.sniper.bulletSpeed=20;
+// ================= MAP OBJECTS =================
+
+const mapObjects=[];
+
+function generateMap(){
+
+for(let i=0;i<300;i++){
+
+mapObjects.push({
+
+x:(Math.random()-0.5)*10000,
+y:(Math.random()-0.5)*10000,
+
+type:
+Math.random()<0.5
+?"tree"
+:"rock"
+
+});
+
+}
+
+}
+
+generateMap();
+
+function drawMapObjects(){
+
+for(const obj of mapObjects){
+
+const sx=
+obj.x-camera.x+
+canvas.width/2;
+
+const sy=
+obj.y-camera.y+
+canvas.height/2;
+
+// mimo obrazovky
+
+if(
+sx<-100 ||
+sx>canvas.width+100 ||
+sy<-100 ||
+sy>canvas.height+100
+) continue;
+
+if(obj.type==="tree"){
+
+ctx.fillStyle="#1f7a1f";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+20,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+ctx.fillStyle="#5c3b1e";
+
+ctx.fillRect(
+sx-4,
+sy+10,
+8,
+20
+);
+
+}else{
+
+ctx.fillStyle="#888";
+
+ctx.beginPath();
+
+ctx.arc(
+sx,
+sy,
+16,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+}
+
+}
+
+}
+
+// ================= CULLING =================
+
+function cleanObjects(){
+
+if(bullets.length>500){
+
+bullets.splice(
+0,
+bullets.length-500
+);
+
+}
+
+if(effects.length>200){
+
+effects.splice(
+0,
+effects.length-200
+);
+
+}
+
+}
+
+// ================= MAIN LOOP =================
 
 function gameLoop(){
+
+requestAnimationFrame(
+gameLoop
+);
+
+if(!gameRunning)return;
+if(paused)return;
 
 updatePlayer();
 
@@ -650,10 +2605,14 @@ updateBullets();
 
 updateEnemies();
 
+updateLootSystem();
+
+updateEffects();
+
 bulletCollision();
-  
-updateWave();
-  
+
+cleanObjects();
+
 ctx.clearRect(
 0,
 0,
@@ -663,18 +2622,31 @@ canvas.height
 
 drawGrid();
 
+drawMapObjects();
+
+drawLootSystem();
+
 drawBullets();
 
 drawEnemies();
 
+drawEffects();
+
 drawPlayer();
 
-requestAnimationFrame(gameLoop);
+updateWeaponHud();
 
 }
 
+// ================= START =================
+
 gameLoop();
+
+console.log(
+"MGOT Survivor Ultimate Loaded"
+);
 
 </script>
 </body>
 </html>
+
