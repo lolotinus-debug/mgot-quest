@@ -1093,7 +1093,14 @@ b.x-e.x,
 b.y-e.y
 );
 
-if(dist < e.size * 1.5){
+const hitY = e.y + e.size * 0.3;
+
+const dist = Math.hypot(
+b.x - e.x,
+b.y - hitY
+);
+
+if(dist < e.size * 0.9){
 
 e.hp-=b.damage;
 
