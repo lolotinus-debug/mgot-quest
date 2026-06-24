@@ -2510,69 +2510,108 @@ const MAP_SIZE = 9000;
 
 function generateMap(){
 
-for(let cx = -MAP_SIZE; cx < MAP_SIZE; cx += CHUNK_SIZE){
-for(let cy = -MAP_SIZE; cy < MAP_SIZE; cy += CHUNK_SIZE){
+mapObjects.length = 0;
+mapZones.length = 0;
 
-const biomeRand = Math.random();
+const biomeSize = 2000;
 
-// 🌳 LES
-if(biomeRand < 0.45){
+for(let x=-MAP_SIZE;x<MAP_SIZE;x+=biomeSize){
+
+for(let y=-MAP_SIZE;y<MAP_SIZE;y+=biomeSize){
+
+let biome;
+
+const r = Math.random();
+
+if(r < 0.30){
+biome="forest";
+}
+else if(r < 0.55){
+biome="desert";
+}
+else if(r < 0.80){
+biome="plains";
+}
+else{
+biome="city";
+}
+
+mapZones.push({
+x,
+y,
+size:biomeSize,
+biome
+});
+
+// FOREST
+
+if(biome==="forest"){
+
+for(let i=0;i<80;i++){
+
+mapObjects.push({
+x:x+Math.random()*biomeSize,
+y:y+Math.random()*biomeSize,
+type:"tree"
+});
+
+}
+
+}
+
+// DESERT
+
+if(biome==="desert"){
+
+for(let i=0;i<40;i++){
+
+mapObjects.push({
+x:x+Math.random()*biomeSize,
+y:y+Math.random()*biomeSize,
+type:"cactus"
+});
+
+}
+
+}
+
+// PLAINS
+
+if(biome==="plains"){
 
 for(let i=0;i<25;i++){
+
 mapObjects.push({
-x: cx + Math.random()*CHUNK_SIZE,
-y: cy + Math.random()*CHUNK_SIZE,
-type: "tree"
+x:x+Math.random()*biomeSize,
+y:y+Math.random()*biomeSize,
+type:"bush"
 });
-}
 
 }
 
-// 🪨 SKALY
-else if(biomeRand < 0.65){
+}
 
-for(let i=0;i<18;i++){
+// CITY
+
+if(biome==="city"){
+
+for(let i=0;i<20;i++){
+
 mapObjects.push({
-x: cx + Math.random()*CHUNK_SIZE,
-y: cy + Math.random()*CHUNK_SIZE,
-type: "rock"
+x:x+Math.random()*biomeSize,
+y:y+Math.random()*biomeSize,
+type:"building"
 });
-}
 
 }
 
-// 🌾 PRÁZDNO
-else{
-
-for(let i=0;i<6;i++){
-mapObjects.push({
-x: cx + Math.random()*CHUNK_SIZE,
-y: cy + Math.random()*CHUNK_SIZE,
-type: Math.random()<0.7?"tree":"rock"
-});
-}
-
-}
-
-}
-}
-
-// 🛣️ CESTY (veľmi dôležité pre PC feeling)
-for(let i=-MAP_SIZE;i<MAP_SIZE;i+=CHUNK_SIZE){
-
-for(let j=-MAP_SIZE;j<MAP_SIZE;j+=200){
-mapObjects.push({x:i, y:j, type:"road"});
-}
-
-for(let j=-MAP_SIZE;j<MAP_SIZE;j+=200){
-mapObjects.push({x:j, y:i, type:"road"});
 }
 
 }
 
 }
 
-generateMap();
+}
 
 function drawMapObjects(){
 
