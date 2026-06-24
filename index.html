@@ -1073,54 +1073,46 @@ canvas.height/2
 
 function bulletCollision(){
 
-for(
-let i=bullets.length-1;
-i>=0;
-i--
-){
+for(let i=bullets.length-1;i>=0;i--){
 
 const b = bullets[i];
 
-for(
-let j=enemies.length-1;
-j>=0;
-j--
-){
+for(let j=enemies.length-1;j>=0;j--){
 
 const e = enemies[j];
 
-// 🔥 presnejší hitbox (stred tela + mierny offset hore)
-const enemyCenterY = e.y - e.size * 0.15;
+// 🔥 sprite-based hitbox
+const spriteSize = e.size * 6;
 
-const dx = b.x - e.x;
-const dy = b.y - enemyCenterY;
+const centerX = e.x;
+const centerY = e.y;
+
+// posun na "hrudník/hlavu"
+const hitY = centerY - spriteSize * 0.25;
+
+const dx = b.x - centerX;
+const dy = b.y - hitY;
 
 const dist = Math.hypot(dx, dy);
 
-// 🎯 HIT RADIUS (môžeš meniť presnosť)
-const hitRadius = e.size * 0.9;
+// presnejší hit radius
+const hitRadius = spriteSize * 0.18;
 
 if(dist < hitRadius){
 
-// damage
 e.hp -= b.damage;
 
-// damage text trošku vyššie (vizuálne lepšie)
 createDamageText(
 e.x,
-e.y - e.size * 0.5,
+e.y - e.size * 2,
 Math.floor(b.damage)
 );
 
-// remove bullet
 bullets.splice(i,1);
 
-// enemy death
 if(e.hp <= 0){
-
 enemyKilled(e);
 enemies.splice(j,1);
-
 }
 
 break;
