@@ -2502,7 +2502,7 @@ weapons.sniper.damage=90;
 weapons.sniper.fireRate=900;
 weapons.sniper.bulletSpeed=20;
 // ================= MAP OBJECTS =================
-
+const mapZones = [];
 const mapObjects = [];
 
 const CHUNK_SIZE = 1000;
@@ -2651,6 +2651,64 @@ ctx.fill();
 
 }
 
+else if(obj.type==="building"){
+
+ctx.fillStyle="#666";
+
+ctx.fillRect(
+sx-20,
+sy-20,
+40,
+40
+);
+
+ctx.fillStyle="#88ccff";
+
+ctx.fillRect(
+sx-10,
+sy-10,
+8,
+8
+);
+
+ctx.fillRect(
+sx+2,
+sy-10,
+8,
+8
+);
+
+}
+  
+else if(obj.type==="bush"){
+
+ctx.fillStyle="#4CAF50";
+
+ctx.beginPath();
+ctx.arc(
+sx,
+sy,
+12,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+}
+  
+else if(obj.type==="cactus"){
+
+ctx.fillStyle="#4CAF50";
+
+ctx.fillRect(
+sx-5,
+sy-15,
+10,
+30
+);
+
+}
+  
 // 🛣️ ROAD (🔥 KLÚČOVÉ)
 else if(obj.type==="road"){
 
@@ -2744,7 +2802,7 @@ updateWeaponHud();
 }
 
 // ================= START =================
-
+generateMap();
 gameLoop();
 
 console.log(
