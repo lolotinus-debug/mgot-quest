@@ -1023,6 +1023,7 @@ vy:-1
 
 }
 
+
 function updateEffects(){
 
 for(
@@ -1031,14 +1032,14 @@ i>=0;
 i--
 ){
 
-let ef=
-effects[i];
+let ef = effects[i];
 
-ef.y+=ef.vyupdateEnemies
-if(ef.life<=0){
+ef.y += ef.vy;
 
+ef.life--;
+
+if(ef.life <= 0){
 effects.splice(i,1);
-
 }
 
 }
@@ -1078,7 +1079,7 @@ i>=0;
 i--
 ){
 
-let b=bullets[i];
+const b = bullets[i];
 
 for(
 let j=enemies.length-1;
@@ -1086,42 +1087,43 @@ j>=0;
 j--
 ){
 
-let e=enemies[j];
+const e = enemies[j];
 
-let dist=Math.hypot(
-b.x-e.x,
-b.y-e.y
-);
+// 🔥 presnejší hitbox (stred tela + mierny offset hore)
+const enemyCenterY = e.y - e.size * 0.15;
 
-const hitY = e.y + e.size * 0.3;
+const dx = b.x - e.x;
+const dy = b.y - enemyCenterY;
 
-const dist = Math.hypot(
-b.x - e.x,
-b.y - hitY
-);
+const dist = Math.hypot(dx, dy);
 
-if(dist < e.size * 0.9){
+// 🎯 HIT RADIUS (môžeš meniť presnosť)
+const hitRadius = e.size * 0.9;
 
-e.hp-=b.damage;
+if(dist < hitRadius){
 
+// damage
+e.hp -= b.damage;
+
+// damage text trošku vyššie (vizuálne lepšie)
 createDamageText(
 e.x,
-e.y,
+e.y - e.size * 0.5,
 Math.floor(b.damage)
 );
 
+// remove bullet
 bullets.splice(i,1);
 
-if(e.hp<=0){
+// enemy death
+if(e.hp <= 0){
 
 enemyKilled(e);
-
 enemies.splice(j,1);
 
 }
 
 break;
-
 }
 
 }
@@ -1129,7 +1131,7 @@ break;
 }
 
 }
-
+  
 // ================= KILL REWARD =================
 
 function enemyKilled(enemy){
