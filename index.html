@@ -1928,6 +1928,7 @@ target.x-player.x;
 
 const dy=
 target.y-player.y;
+  player.angle = Math.atan2(dy, dx);
 
 const len=
 Math.hypot(dx,dy);
