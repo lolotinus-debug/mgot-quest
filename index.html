@@ -602,79 +602,59 @@ shoot();
 function shoot(){
 
 if(!canShoot)return;
+shoot=function(){
 
+if(!canShoot)return;
 if(enemies.length===0)return;
 
 canShoot=false;
 
 setTimeout(()=>{
-
 canShoot=true;
-
-},
-weapons[currentWeapon].fireRate
-);
+}, weapons[currentWeapon].fireRate);
 
 let target=enemies[0];
-
 let nearest=999999;
 
 for(const e of enemies){
 
+// stred sprite nepriateľa
+const targetX = e.x;
+const targetY = e.y + e.size * 1.5;
+
 const dist=Math.hypot(
-e.x-player.x,
-e.y-player.y
+targetX-player.x,
+targetY-player.y
 );
 
 if(dist<nearest){
-
 nearest=dist;
 target=e;
-
 }
 
 }
 
-const dx=
-target.x-player.x;
+// mierenie na vizuálny stred vojaka
+const targetX = target.x;
+const targetY = target.y + target.size * 1.5;
 
-const dy=
-target.y-player.y;
+const dx = targetX - player.x;
+const dy = targetY - player.y;
 
-player.angle =
-Math.atan2(dy, dx);
+player.angle = Math.atan2(dy, dx);
 
-const len=
-Math.hypot(dx,dy);
+const len=Math.hypot(dx,dy);
 
-const multi=
-weapons[currentWeapon]
-.multiShot;
-
-for(let i=0;i<multi;i++){
+for(let i=0;i<weapons[currentWeapon].multiShot;i++){
 
 let spread=0;
 
-if(multi>1){
-
-spread=
-(i-(multi-1)/2)*0.15;
-
+if(weapons[currentWeapon].multiShot>1){
+spread=(i-(weapons[currentWeapon].multiShot-1)/2)*0.15;
 }
 
-const cos=
-Math.cos(spread);
-
-const sin=
-Math.sin(spread);
-
-const vx=
-(dx/len)*cos-
-(dy/len)*sin;
-
-const vy=
-(dx/len)*sin+
-(dy/len)*cos;
+const angle=
+Math.atan2(dy,dx)+spread;
 
 bullets.push({
 
@@ -682,18 +662,14 @@ x:player.x,
 y:player.y,
 
 vx:
-vx*
-weapons[currentWeapon]
-.bulletSpeed,
+Math.cos(angle)*
+weapons[currentWeapon].bulletSpeed,
 
 vy:
-vy*
-weapons[currentWeapon]
-.bulletSpeed,
+Math.sin(angle)*
+weapons[currentWeapon].bulletSpeed,
 
-damage:
-weapons[currentWeapon]
-.damage,
+damage:getBulletDamage(),
 
 life:100
 
@@ -701,7 +677,7 @@ life:100
 
 }
 
-}
+};
 
 function updateBullets(){
 
@@ -1083,15 +1059,15 @@ const e = enemies[j];
 
 // stred tela vojaka v 6x sprite
 const hitX = e.x;
-const hitY = e.y + e.size * 0.8;
+const hitY = e.y + e.size * 1.5;
 
 const dx = b.x - hitX;
 const dy = b.y - hitY;
 
 const dist = Math.hypot(dx,dy);
 
-// väčší hitbox pre veľký sprite
-const hitRadius = e.size * 2.2;
+// hitbox
+const hitRadius = e.size * 1.8;
 
 if(dist < hitRadius){
 
