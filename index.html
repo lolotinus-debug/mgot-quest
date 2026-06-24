@@ -1081,22 +1081,17 @@ for(let j=enemies.length-1;j>=0;j--){
 
 const e = enemies[j];
 
-// 🔥 sprite-based hitbox
-const spriteSize = e.size * 6;
+// stred tela vojaka v 6x sprite
+const hitX = e.x;
+const hitY = e.y + e.size * 0.8;
 
-const centerX = e.x;
-const centerY = e.y;
-
-// posun na "hrudník/hlavu"
-const hitY = centerY - spriteSize * 0.25;
-
-const dx = b.x - centerX;
+const dx = b.x - hitX;
 const dy = b.y - hitY;
 
-const dist = Math.hypot(dx, dy);
+const dist = Math.hypot(dx,dy);
 
-// presnejší hit radius
-const hitRadius = spriteSize * 0.18;
+// väčší hitbox pre veľký sprite
+const hitRadius = e.size * 2.2;
 
 if(dist < hitRadius){
 
@@ -1111,11 +1106,14 @@ Math.floor(b.damage)
 bullets.splice(i,1);
 
 if(e.hp <= 0){
+
 enemyKilled(e);
 enemies.splice(j,1);
+
 }
 
 break;
+
 }
 
 }
