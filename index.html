@@ -2575,72 +2575,59 @@ mapObjects.push({x:j, y:i, type:"road"});
 generateMap();
 
 function drawMapObjects(){
+function drawMapObjects(){
 
 for(const obj of mapObjects){
 
-const sx=
-obj.x-camera.x+
-canvas.width/2;
-
-const sy=
-obj.y-camera.y+
-canvas.height/2;
-
-// mimo obrazovky
+const sx = obj.x - camera.x + canvas.width/2;
+const sy = obj.y - camera.y + canvas.height/2;
 
 if(
-sx<-100 ||
-sx>canvas.width+100 ||
-sy<-100 ||
-sy>canvas.height+100
+sx < -100 || sx > canvas.width+100 ||
+sy < -100 || sy > canvas.height+100
 ) continue;
 
+// 🌲 TREE
 if(obj.type==="tree"){
 
-ctx.fillStyle="#1f7a1f";
+ctx.fillStyle="#1b6b2a";
 
 ctx.beginPath();
-
-ctx.arc(
-sx,
-sy,
-20,
-0,
-Math.PI*2
-);
-
+ctx.arc(sx, sy, 18, 0, Math.PI*2);
 ctx.fill();
 
-ctx.fillStyle="#5c3b1e";
+// trunk
+ctx.fillStyle="#4b2e1a";
+ctx.fillRect(sx-3, sy+8, 6, 14);
 
-ctx.fillRect(
-sx-4,
-sy+10,
-8,
-20
-);
+}
 
-}else{
+// 🪨 ROCK
+else if(obj.type==="rock"){
 
-ctx.fillStyle="#888";
+ctx.fillStyle="#6e6e6e";
 
 ctx.beginPath();
-
-ctx.arc(
-sx,
-sy,
-16,
-0,
-Math.PI*2
-);
-
+ctx.arc(sx, sy, 14, 0, Math.PI*2);
 ctx.fill();
 
 }
 
+// 🛣️ ROAD (🔥 KLÚČOVÉ)
+else if(obj.type==="road"){
+
+ctx.fillStyle="#2a2a2a";
+ctx.fillRect(sx-25, sy-25, 50, 50);
+
+// road highlight
+ctx.strokeStyle="#3a3a3a";
+ctx.strokeRect(sx-25, sy-25, 50, 50);
+
 }
 
 }
+
+  }
 
 // ================= CULLING =================
 
