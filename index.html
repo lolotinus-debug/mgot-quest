@@ -409,6 +409,8 @@ let currentWeapon="pistol";
 
 const soldierImg = new Image();
 soldierImg.src="soldier.png";
+const enemyImg = new Image();
+enemyImg.src = "enemysoldier.png";
 const joystick=
 document.getElementById("joystick");
 
@@ -1174,44 +1176,29 @@ function drawEnemies(){
 
 for(const e of enemies){
 
-let sx=
-e.x-camera.x+
-canvas.width/2;
+let sx =
+e.x - camera.x + canvas.width/2;
 
-let sy=
-e.y-camera.y+
-canvas.height/2;
+let sy =
+e.y - camera.y + canvas.height/2;
 
-if(e.type==="boss"){
+// --- SPRITE ---
+if(enemyImg.complete && enemyImg.naturalWidth){
 
-ctx.fillStyle="#8b0000";
-
-}else if(
-e.type==="tank"
-){
-
-ctx.fillStyle="#8844ff";
-
-}else if(
-e.type==="runner"
-){
-
-ctx.fillStyle="#ff9900";
-
-}else if(
-e.type==="shooter"
-){
-
-ctx.fillStyle="#00ccff";
+ctx.drawImage(
+enemyImg,
+sx - e.size,
+sy - e.size,
+e.size * 2,
+e.size * 2
+);
 
 }else{
 
-ctx.fillStyle="#66ff66";
-
-}
+// fallback (ak sa obrázok nenačíta)
+ctx.fillStyle = "#66ff66";
 
 ctx.beginPath();
-
 ctx.arc(
 sx,
 sy,
@@ -1219,34 +1206,32 @@ e.size,
 0,
 Math.PI*2
 );
-
 ctx.fill();
 
-ctx.fillStyle="#000";
+}
+
+// --- HP BAR (necháme ako máš) ---
+ctx.fillStyle = "#000";
 
 ctx.fillRect(
-sx-30,
-sy-e.size-15,
+sx - 30,
+sy - e.size - 15,
 60,
 6
 );
 
-ctx.fillStyle="lime";
+ctx.fillStyle = "lime";
 
 ctx.fillRect(
-sx-30,
-sy-e.size-15,
-
-60*
-(e.hp/e.maxHp),
-
+sx - 30,
+sy - e.size - 15,
+60 * (e.hp / e.maxHp),
 6
 );
 
 }
 
 }
-
 // ================= GAME OVER =================
 
 function gameOver(){
